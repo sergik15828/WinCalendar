@@ -26,7 +26,7 @@ namespace WinCalendar
         private readonly CheckBox startupCheck;
         private readonly Button configureButton, previewButton, exitButton;
         private readonly Label reminderInfo;
-        private readonly Button optionsButton, weekButton, snooze5, snooze10;
+        private readonly Button optionsButton, weekButton, snooze5, snooze10, calendarLink;
         private readonly Label nextMeeting;
         private AppPreferences preferences = new AppPreferences();
         private bool weekly;
@@ -61,6 +61,7 @@ namespace WinCalendar
         internal event Action<int> SnoozeRequested;
         internal bool Weekly { get { return weekly; } }
         internal Button WeekButton { get { return weekButton; } }
+        internal Button CalendarLinkButton { get { return calendarLink; } }
         internal Button TodayButton { get { return todayButton; } }
         internal Button GoogleButton { get { return googleButton; } }
         internal Button NextButton { get { return next; } }
@@ -120,8 +121,11 @@ namespace WinCalendar
                     dayButtons[index] = button; Controls.Add(button);
                 }
             }
-            agendaHeading = LabelAt(new Rectangle(360, 16, 226, 28), monthFont);
+            agendaHeading = LabelAt(new Rectangle(360, 16, 88, 28), monthFont);
             agendaHeading.Text = "Встречи";
+            calendarLink = FooterButton("Google Calendar", new Rectangle(464, 16, 128, 28), 9); calendarLink.Font = smallFont;
+            calendarLink.AccessibleName = "Открыть Google Calendar в браузере";
+            calendarLink.Click += delegate { if (GoogleRequested != null) GoogleRequested(this, EventArgs.Empty); };
             selectedDate = LabelAt(new Rectangle(360, 48, 216, 24), smallFont);
             weekButton = FooterButton("Неделя", new Rectangle(580, 46, 92, 28), 6); weekButton.Font = smallFont;
             weekButton.Click += delegate { weekly = !weekly; weekButton.Text = weekly ? "День" : "Неделя"; RenderEvents(); if (RangeChanged != null) RangeChanged(this, EventArgs.Empty); };
@@ -285,7 +289,7 @@ namespace WinCalendar
             weekday.ForeColor = palette.Secondary;
             selectedDate.ForeColor = palette.Secondary;
             nextMeeting.ForeColor = palette.Secondary;
-            weekButton.ForeColor = snooze5.ForeColor = snooze10.ForeColor = palette.Accent;
+            weekButton.ForeColor = snooze5.ForeColor = snooze10.ForeColor = calendarLink.ForeColor = palette.Accent;
             emptyEvents.ForeColor = syncStatus.ForeColor = updatedStatus.ForeColor = reminderInfo.ForeColor = palette.Secondary;
             startupCheck.ForeColor = palette.Ink;
             settingsButton.Palette = closeButton.Palette = palette;

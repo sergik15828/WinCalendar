@@ -68,7 +68,7 @@ namespace WinCalendar
         protected override void OnMouseMove(MouseEventArgs args)
         {
             int index = HitCard(args.Location);
-            Cursor = index >= 0 && (CalendarPage.SafeGoogleLink(((EventRow)Items[index]).Event.Url) != null
+            Cursor = index >= 0 && !IsPast((EventRow)Items[index]) && (CalendarPage.SafeGoogleLink(((EventRow)Items[index]).Event.Url) != null
                 || (CalendarPage.SafeMeetLink(((EventRow)Items[index]).Event.MeetUrl) != null && MeetBounds(GetItemRectangle(index)).Contains(args.Location))) ? Cursors.Hand : Cursors.Default;
             pointer = args.Location;
             if (hovered != index)
@@ -109,7 +109,8 @@ namespace WinCalendar
             if (message.Msg == 0x201 || message.Msg == 0x203)
             {
                 int packed = message.LParam.ToInt32();
-                if (HitCard(new Point((short)(packed & 0xffff), (short)(packed >> 16))) < 0) return;
+                int hit = HitCard(new Point((short)(packed & 0xffff), (short)(packed >> 16)));
+                if (hit < 0 || IsPast((EventRow)Items[hit])) return;
             }
             base.WndProc(ref message);
         }
@@ -150,7 +151,11 @@ namespace WinCalendar
             for (int i = 0; i < Items.Count; i++)
             {
                 EventRow row = (EventRow)Items[i]; bool past = row.Event.ReminderEnd <= Clock();
-                if (row.Past != past) { row.Past = past; InvalidateCard(i); }
+                if (row.Past != past)
+                {
+                    row.Past = past; InvalidateCard(i);
+                    if (i == hovered && past) { Cursor = Cursors.Default; tooltipDelay.Stop(); HideTooltip(); }
+                }
             }
         }
 
@@ -232,19 +237,19 @@ namespace WinCalendar
         {
             EventRow row = (EventRow)Items[args.Index];
             bool past = row.Event.ReminderEnd <= Clock(); row.Past = past;
-            bool selected = (args.State & DrawItemState.Selected) != 0 || args.Index == hovered;
+            bool selected = !past && ((args.State & DrawItemState.Selected) != 0 || args.Index == hovered);
             Color background = selected ? palette.Hover : palette.EventSurface;
-            Color ink = past && !SystemInformation.HighContrast ? Mix(palette.Ink, palette.Surface, 0.68) : palette.Ink;
+            Color ink = past && !SystemInformation.HighContrast ? Mix(palette.Ink, palette.Surface, 0.42) : palette.Ink;
             Color secondary = past ? ink : palette.Secondary;
             Color accent = past ? ink : palette.Accent;
-            if (past && !selected && !SystemInformation.HighContrast) background = Mix(background, palette.Surface, 0.65);
+            if (past && !SystemInformation.HighContrast) background = Mix(background, palette.Surface, 0.35);
             using (Brush surface = new SolidBrush(palette.Surface)) args.Graphics.FillRectangle(surface, args.Bounds);
             Rectangle card = CardBounds(args.Bounds);
             args.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (GraphicsPath path = Rounded(card, Pixels(8)))
             using (Brush fill = new SolidBrush(background))
-            using (Pen border = new Pen(past ? Mix(palette.Rule, palette.Surface, 0.65) : palette.Rule)) { args.Graphics.FillPath(fill, path); args.Graphics.DrawPath(border, path); }
-            bool meet = CalendarPage.SafeMeetLink(row.Event.MeetUrl) != null;
+            using (Pen border = new Pen(past ? Mix(palette.Rule, palette.Surface, 0.35) : palette.Rule)) { args.Graphics.FillPath(fill, path); args.Graphics.DrawPath(border, path); }
+            bool meet = !past && CalendarPage.SafeMeetLink(row.Event.MeetUrl) != null;
             Rectangle time = new Rectangle(card.X + Pixels(12), card.Y + Pixels(7), card.Width - Pixels(meet ? 128 : 24), Pixels(18));
             Rectangle title = new Rectangle(time.X, card.Y + Pixels(27), card.Width - Pixels(24), Pixels(34));
             Rectangle source = new Rectangle(time.X + Pixels(10), card.Y + Pixels(64), card.Width - Pixels(row.Conflict ? 138 : 34), Pixels(16));
@@ -253,7 +258,7 @@ namespace WinCalendar
                 TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.WordBreak);
             TextRenderer.DrawText(args.Graphics, row.Source, detailFont ?? Font, source, secondary,
                 TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-            using (Brush dot = new SolidBrush(SystemInformation.HighContrast ? palette.Ink : Mix(Preferences.ColorFor(row.Event, palette.Accent), palette.Surface, past ? 0.55 : 1)))
+            using (Brush dot = new SolidBrush(SystemInformation.HighContrast ? palette.Ink : Mix(Preferences.ColorFor(row.Event, palette.Accent), palette.Surface, past ? 0.30 : 1)))
                 args.Graphics.FillEllipse(dot, time.X, source.Y + Pixels(5), Pixels(5), Pixels(5));
             if (row.Conflict) TextRenderer.DrawText(args.Graphics, "Пересечение", detailFont ?? Font,
                 new Rectangle(card.Right - Pixels(112), source.Top, Pixels(100), source.Height), accent, TextFormatFlags.Right | TextFormatFlags.SingleLine);
@@ -289,14 +294,17 @@ namespace WinCalendar
 
         internal void Open(int index)
         {
+            if (index < 0 || index >= Items.Count || IsPast((EventRow)Items[index])) return;
             string url = CalendarPage.SafeGoogleLink(((EventRow)Items[index]).Event.Url);
             if (url != null && OpenRequested != null) OpenRequested(url);
         }
         internal void OpenMeet(int index)
         {
+            if (index < 0 || index >= Items.Count || IsPast((EventRow)Items[index])) return;
             string url = CalendarPage.SafeMeetLink(((EventRow)Items[index]).Event.MeetUrl);
             if (url != null && MeetRequested != null) MeetRequested(url);
         }
+        private bool IsPast(EventRow row) { return row.Event.ReminderEnd <= Clock(); }
 
         protected override void Dispose(bool disposing)
         {
@@ -309,7 +317,7 @@ namespace WinCalendar
             internal string Time, Source, Title;
             internal bool Conflict, Past;
             internal string Identity { get { return Event.CalendarId + "\u001f" + Event.Id + "\u001f" + Event.Start; } }
-            public override string ToString() { return Time + ", " + Title + ", " + Source + (Past ? ", Завершено" : "") + (Conflict ? ", Пересечение" : "") + (CalendarPage.SafeMeetLink(Event.MeetUrl) != null ? ", Войти в Meet: Alt+Enter" : ""); }
+            public override string ToString() { return Time + ", " + Title + ", " + Source + (Past ? ", Завершено" : "") + (Conflict ? ", Пересечение" : "") + (!Past && CalendarPage.SafeMeetLink(Event.MeetUrl) != null ? ", Войти в Meet: Alt+Enter" : ""); }
         }
         [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wparam, IntPtr lparam);
     }

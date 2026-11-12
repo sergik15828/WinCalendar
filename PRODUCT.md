@@ -47,7 +47,7 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Privacy masks meeting and calendar names in cards, tooltip/accessibility text, the next-meeting label and taskbar tooltip. Apply saved preferences immediately; calendar names in preference selection are also masked while privacy is enabled.
 - Pulse intensity has three levels while respecting Windows motion/contrast settings. An optional non-activating taskbar tooltip shows the next meeting; it must not cover the pinned icon, steal focus or create an application indicator.
 - Preferences use separate current-user DPAPI storage. Calendar, account configuration and all preference pages share one reusable window. Save applies changes; Back leaves the active settings unchanged.
-- Version 0.6.1 emphasizes eligible Meet actions with an accent fill. Ended meetings recede with readable muted colors while retaining links. Time-state updates invalidate only affected cards.
+- Version 0.6.2 emphasizes eligible active Meet actions with an accent fill. Ended meetings recede further as inactive historical entries; hide their Meet action and reject event/Meet activation by mouse or keyboard using the live end time. Time-state updates invalidate only affected cards. A separate header Google Calendar button opens the site and dismisses the flyout without exiting the updater.
 - Agenda scrolling accumulates precision-wheel deltas, batches native redraw and works under the pointer without moving keyboard focus. Preserve card hit boundaries, tooltip stability and scroll position during unchanged refreshes.
 
 ## Brand commitments

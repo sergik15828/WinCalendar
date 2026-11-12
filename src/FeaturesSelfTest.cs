@@ -80,7 +80,7 @@ namespace WinCalendar
             }
             finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
 
-            using (CalendarEventList list = new CalendarEventList())
+            using (CalendarEventList list = new CalendarEventList { Clock = delegate { return a.ReminderStart.AddMinutes(-1); } })
             {
                 a.MeetUrl = direct.MeetUrl; string opened = null;
                 list.SetEvents(new[] { a }, date, TimeZoneInfo.Local, CalendarPalette.Create(false), 96);

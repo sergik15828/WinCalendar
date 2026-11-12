@@ -19,7 +19,8 @@ namespace WinCalendar
                     Title = "Встреча " + (i + 1) + " — проверка прокрутки", Start = CalendarEvent.Boundary(date.AddHours(i), TimeZoneInfo.Local).ToString("o"),
                     End = CalendarEvent.Boundary(date.AddHours(i + 1), TimeZoneInfo.Local).ToString("o"),
                     Url = "https://calendar.google.com/calendar/event?eid=scroll-" + i, MeetUrl = "https://meet.google.com/abc-defg-hij" });
-            using (CalendarPopup popup = new CalendarPopup(delegate { return date.AddHours(10); }, delegate { }))
+            int googleOpened = 0;
+            using (CalendarPopup popup = new CalendarPopup(delegate { return date.AddHours(10); }, delegate { googleOpened++; }))
             {
                 popup.ShowAt(new Point(400, 500), Screen.PrimaryScreen.WorkingArea);
                 popup.Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Connected, HasSnapshot = true, Events = events });
@@ -61,6 +62,21 @@ namespace WinCalendar
                 DateTimeOffset clock = events[0].ReminderEnd.AddSeconds(-1); list.Clock = delegate { return clock; };
                 list.RefreshTimeState(); clock = clock.AddSeconds(2); list.RefreshTimeState();
                 check(list.Items[0].ToString().Contains("Завершено"), "An event becomes muted after its end without waiting for network refresh");
+                popup.Panel.CalendarLinkButton.PerformClick();
+                check(googleOpened == 1 && !popup.Visible && !popup.ViewWindow.IsDisposed, "Main calendar button opens Google Calendar and dismisses the flyout without exiting");
+            }
+            DateTimeOffset actionClock = events[10].ReminderStart;
+            using (CalendarEventList list = new CalendarEventList { Clock = delegate { return actionClock; } })
+            {
+                int eventLinks = 0, meetLinks = 0;
+                list.OpenRequested += delegate { eventLinks++; }; list.MeetRequested += delegate { meetLinks++; };
+                list.SetEvents(events, date, TimeZoneInfo.Local, CalendarPalette.Create(false), 96);
+                list.Open(8); list.OpenMeet(8);
+                check(eventLinks == 0 && meetLinks == 0 && !list.Items[8].ToString().Contains("Alt+Enter"), "Past meetings expose neither event nor Meet actions");
+                list.Open(10); list.OpenMeet(10);
+                check(eventLinks == 1 && meetLinks == 1, "Ongoing and future meeting links stay available");
+                actionClock = events[10].ReminderEnd.AddSeconds(1); list.Open(10); list.OpenMeet(10);
+                check(eventLinks == 1 && meetLinks == 1, "Links stop working at event end even before the next visual refresh");
             }
         }
         private static void Save(Control control, string directory, string name)
