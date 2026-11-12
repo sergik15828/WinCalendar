@@ -1,0 +1,9 @@
+dist/
+artifacts/
+obj/
+bin/
+.vs/
+.impeccable/
+.agents/
+.codex/
+.aws/
