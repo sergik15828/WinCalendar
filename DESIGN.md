@@ -103,7 +103,7 @@ Background startup keeps the native host minimized and opens neither popup nor b
 - Calendar left, meetings right, with a fine vertical divider.
 - Compact type hierarchy and distinct event time, title and source-calendar roles.
 - Settings and OAuth editing stay inside one reusable native tool window.
-- A quiet reminder accent persists until the user clicks the date.
+- A visible breathing reminder persists until the user clicks the date.
 
 ## Colors
 
@@ -183,7 +183,7 @@ Account authorization opens in the default browser. Reopening settings during au
 
 ### Reminder accent
 
-Honor each Google event's popup-notification timing, including inherited calendar defaults and explicit overrides. A due reminder adds a small badge and a restrained breathing outline over the pinned date, with a 1.8-second cycle. The overlay passes clicks through, never activates, and adds no taskbar button. It does not rewrite the ICO or invalidate Explorer's icon cache.
+Honor each Google event's popup-notification timing, including inherited calendar defaults and explicit overrides. A due reminder adds a badge, ripple and visibly breathing outline over the pinned date, with a 1.8-second cycle. The contour expands up to 3 logical pixels on each side, increasing its opacity and stroke width; the badge grows with it while the white date remains readable. Keep this overlay above Explorer's taskbar on every frame without activating it. It passes clicks through, adds no taskbar button, and does not rewrite the ICO or invalidate Explorer's icon cache.
 
 Pending reminders persist in current-user DPAPI-encrypted state, including across restart, until the user clicks the date to acknowledge them. A later configured reminder can trigger again. Reduced-motion settings or High Contrast produce a static accent instead of animation; High Contrast uses the system highlight color. Проверить напоминание previews the same attention treatment until acknowledged.
 
@@ -193,7 +193,9 @@ All 201 native self-test checks pass, covering calendar state, keyboard controls
 
 Current light/dark captures at requested 96, 120 and 144 DPI are artifacts/google-events-{light,dark}-{96,120,144}.png, artifacts/calendar-settings-{light,dark}-{96,120,144}.png and artifacts/calendar-client-{light,dark}-{96,120,144}.png. They show the two-pane event view, inline settings and inline editor; fixture events are synthetic and editor fields are blank. artifacts/reminder-animation-frames.png illustrates the accent cycle. Requested-DPI renders do not establish real mixed-monitor transitions.
 
-Installed checks in artifacts/VerifyCurrentUi.ps1 confirm one hidden startup process, retained pin and enabled startup, a real account's selected-day event retrieval, and the 860 × 475 flyout at the user's actual 120 DPI. Calendar, settings, editor and repeated setup use the same window handle without an app-window style. The real reminder preview in artifacts/installed-reminder-accent.png is centered on the pinned date; native checks confirm click-through/non-activating styles, unchanged foreground window and ICO timestamp, and a date click hiding the accent while opening the calendar. Future Google event delivery at its real wall-clock reminder time, mixed-monitor transitions and pinned-icon rollover after real midnight remain unverified.
+Installed checks in artifacts/VerifyCurrentUi.ps1 confirm one hidden startup process, retained pin and enabled startup, a real account's selected-day event retrieval, and the 860 × 475 flyout at the user's actual 120 DPI. Calendar, settings, editor and repeated setup use the same window handle without an app-window style. The real reminder preview in artifacts/installed-reminder-accent.png is centered on the pinned date; native checks confirm click-through/non-activating styles, unchanged foreground window and ICO timestamp, and a date command hiding the accent while opening the calendar.
+
+A real Google event's configured 16:03 reminder fired at 16:03:01 local time. Its pending state survived restart and the event's end. The initial overlay could be occluded by Explorer; maintaining topmost order every frame fixed that, and the stronger pulse is captured in artifacts/real-accent-0.png through artifacts/real-accent-5.png. The user confirmed that the pulse was visible and disappeared after clicking the date; the native watcher simultaneously confirmed a cleared pulse and visible calendar at 16:10:39. A follow-up probe confirmed the accent remained hidden 33 seconds later. Real mixed-monitor transitions and pinned-icon rollover after real midnight remain unverified.
 
 ## Do's and Don'ts
 

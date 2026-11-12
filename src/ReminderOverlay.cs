@@ -76,6 +76,9 @@ namespace WinCalendar
                 if (!Present(bitmap, at)) { Hide(); return; }
             }
             if (!Visible) Show();
+            // Explorer raises the taskbar again during hover and activation.
+            // Keep the click-through accent above it without taking focus.
+            SetWindowPos(Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0213);
         }
 
         internal static Bitmap DrawFrame(int size, double phase)
@@ -87,12 +90,13 @@ namespace WinCalendar
                 graphics.ScaleTransform(size / 48f, size / 48f);
                 double breathe = (1 - Math.Cos(phase * 2 * Math.PI)) / 2;
                 Color accent = SystemInformation.HighContrast ? SystemColors.Highlight : Color.FromArgb(196, 43, 54);
-                using (GraphicsPath outline = Rounded(8, 8, 32, 32, 6))
-                using (Pen pen = new Pen(Color.FromArgb((int)(45 + 65 * breathe), accent), 1.2f)) graphics.DrawPath(pen, outline);
-                float radius = (float)(3.1 + 0.35 * breathe), ripple = (float)(4 + 4 * phase);
-                using (Pen ring = new Pen(Color.FromArgb((int)(65 * (1 - phase)), accent), 1))
+                float spread = (float)(3 * breathe);
+                using (GraphicsPath outline = Rounded(8 - spread, 8 - spread, 32 + 2 * spread, 32 + 2 * spread, 6 + spread))
+                using (Pen pen = new Pen(Color.FromArgb((int)(65 + 175 * breathe), accent), (float)(1.25 + 1.25 * breathe))) graphics.DrawPath(pen, outline);
+                float radius = (float)(3 + 1.5 * breathe), ripple = (float)(5 + 6 * phase);
+                using (Pen ring = new Pen(Color.FromArgb((int)(150 * (1 - phase)), accent), 1.4f))
                     graphics.DrawEllipse(ring, 36 - ripple, 12 - ripple, 2 * ripple, 2 * ripple);
-                using (Brush fill = new SolidBrush(Color.FromArgb((int)(210 + 45 * breathe), accent)))
+                using (Brush fill = new SolidBrush(Color.FromArgb((int)(180 + 75 * breathe), accent)))
                     graphics.FillEllipse(fill, 36 - radius, 12 - radius, 2 * radius, 2 * radius);
                 using (Pen border = new Pen(Color.FromArgb(235, Color.White), 0.9f))
                     graphics.DrawEllipse(border, 36 - radius, 12 - radius, 2 * radius, 2 * radius);
@@ -140,6 +144,7 @@ namespace WinCalendar
         [StructLayout(LayoutKind.Sequential, Pack = 1)] private struct Blend { internal byte Operation, Flags, Alpha, Format; }
         [DllImport("user32.dll")] private static extern bool SystemParametersInfo(uint action, uint parameter, out int value, uint flags);
         [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr window);
+        [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool SetProp(IntPtr window, string name, IntPtr value);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool RemoveProp(IntPtr window, string name);
         [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);

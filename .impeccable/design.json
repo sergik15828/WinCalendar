@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-12T12:17:29.808733+00:00",
+  "generatedAt": "2026-11-12T13:12:01.439227+00:00",
   "title": "Design System: WinCalendar",
   "extensions": {
     "colorMeta": {
@@ -351,8 +351,8 @@
     "motion": [
       {
         "name": "reminder-breathe",
-        "value": "1800ms cosine cycle",
-        "purpose": "Persistent badge/outline until acknowledgement; static with Windows reduced motion or High Contrast."
+        "value": "1800ms cosine cycle; contour expands 0–3 logical px per side",
+        "purpose": "Visible persistent badge/ripple/outline until acknowledgement. Contour alpha 65–240 and width 1.25–2.5px; badge radius 3–4.5px; ripple radius 5–11px. Static with Windows reduced motion or High Contrast."
       }
     ],
     "breakpoints": [],
@@ -363,7 +363,7 @@
       "identity": "Incumbent red/white weekday/day icon and native executable identity; no explicit AppUserModelID.",
       "elevation": "Windows native shadow and requested DWM rounded corners; event cards have borders and no shadows.",
       "dpi": "688 × 380 logical pixels; actual window DPI scales bounds, fonts and painting; constrained work areas scroll.",
-      "reminders": "Non-activating, click-through layered overlay; Google popup-notification rules; current-user DPAPI pending state; no ICO rewrite."
+      "reminders": "Non-activating, click-through layered overlay kept above Explorer every frame; Google popup-notification rules; current-user DPAPI pending state; no ICO rewrite."
     },
     "verification": {
       "tests": "artifacts/self-test.txt — all 201 checks pass",
@@ -375,12 +375,20 @@
       ],
       "verified": "Installed 0.5: one hidden startup process; preserved pin and enabled startup; real selected-day event retrieval; 860 × 475 at actual 120 DPI; one shared calendar/settings/editor window without app-window style. Actual preview overlay is centered on the pin, click-through and non-activating, with unchanged foreground and ICO timestamp; date click acknowledges it and opens the calendar.",
       "limits": [
-        "Future Google event delivery at its real wall-clock reminder time remains unverified.",
         "Requested DPI renders do not verify real mixed-monitor transitions.",
         "Pinned-icon rollover after real midnight remains unverified."
       ],
       "installedProbe": "artifacts/VerifyCurrentUi.ps1",
-      "actualReminderPreview": "artifacts/installed-reminder-accent.png"
+      "actualReminderPreview": "artifacts/installed-reminder-accent.png",
+      "realScheduledReminder": "Configured real Google reminder at 16:03 fired at 16:03:01 local time. Pending state survived restart and event end. User confirmed visible stronger pulse and disappearance after clicking; native watcher confirmed pulse false and calendar visible at 16:10:39. Follow-up native probe confirmed the accent remained hidden 33 seconds after the click.",
+      "realReminderCaptures": [
+        "artifacts/real-accent-0.png",
+        "artifacts/real-accent-1.png",
+        "artifacts/real-accent-2.png",
+        "artifacts/real-accent-3.png",
+        "artifacts/real-accent-4.png",
+        "artifacts/real-accent-5.png"
+      ]
     }
   },
   "components": [
@@ -446,9 +454,9 @@
     {
       "name": "Reminder accent",
       "kind": "custom",
-      "description": "Illustrative overlay preview: a quiet 1.8s breathing outline and badge; production is click-through and does not rewrite the icon.",
-      "html": "<div class=\"ds-reminder\" role=\"img\" aria-label=\"Есть неподтверждённое напоминание\"><div class=\"ds-reminder-icon\"><b>ЧТ</b><strong>12</strong></div><span class=\"ds-reminder-outline\"></span><span class=\"ds-reminder-badge\"></span></div>",
-      "css": ".ds-reminder{position:relative;width:48px;height:48px;font-family:\"Segoe UI\",sans-serif;pointer-events:none}.ds-reminder-icon{position:absolute;left:8px;top:8px;width:32px;height:32px;border-radius:6px;background:#FCFCFC;overflow:hidden;text-align:center}.ds-reminder-icon b{display:block;height:14px;background:#C42B36;color:#FFFFFF;font-size:11px}.ds-reminder-icon strong{color:#18181B;font-size:18px;line-height:18px}.ds-reminder-outline{position:absolute;left:8px;top:8px;width:32px;height:32px;border:1.2px solid #C42B36;border-radius:6px;opacity:.18;animation:ds-reminder-breathe 1.8s ease-in-out infinite}.ds-reminder-badge{position:absolute;left:33px;top:9px;width:6px;height:6px;border:1px solid #FFFFFF;border-radius:50%;background:#C42B36;animation:ds-reminder-breathe 1.8s ease-in-out infinite}@keyframes ds-reminder-breathe{50%{opacity:.43;transform:scale(1.02)}}@media(prefers-reduced-motion:reduce),(forced-colors:active){.ds-reminder-outline,.ds-reminder-badge{animation:none;opacity:1}}@media(forced-colors:active){.ds-reminder-outline{border-color:Highlight}.ds-reminder-badge{background:Highlight}}"
+      "description": "Illustrative overlay preview: visible 1.8s breathing contour, growing badge and ripple. Production stays above Explorer without activation, passes clicks through, and does not rewrite the icon.",
+      "html": "<div class=\"ds-reminder\" role=\"img\" aria-label=\"Есть неподтверждённое напоминание\"><div class=\"ds-reminder-icon\"><b>ЧТ</b><strong>12</strong></div><span class=\"ds-reminder-outline\"></span><span class=\"ds-reminder-ripple\"></span><span class=\"ds-reminder-badge\"></span></div>",
+      "css": ".ds-reminder{position:relative;width:48px;height:48px;font-family:\"Segoe UI\",sans-serif;pointer-events:none}.ds-reminder-icon{position:absolute;left:8px;top:8px;width:32px;height:32px;border-radius:6px;background:#FCFCFC;overflow:hidden;text-align:center}.ds-reminder-icon b{display:block;height:14px;background:#C42B36;color:#FFFFFF;font-size:11px}.ds-reminder-icon strong{color:#18181B;font-size:18px;line-height:18px}.ds-reminder-outline{position:absolute;box-sizing:border-box;left:8px;top:8px;width:32px;height:32px;border:1.25px solid #C42B36;border-radius:6px;opacity:.255;animation:ds-reminder-outline 1.8s ease-in-out infinite}.ds-reminder-badge{position:absolute;box-sizing:border-box;left:33px;top:9px;width:6px;height:6px;border:.9px solid #FFFFFF;border-radius:50%;background:#C42B36;opacity:.706;animation:ds-reminder-badge 1.8s ease-in-out infinite}.ds-reminder-ripple{position:absolute;box-sizing:border-box;left:31px;top:7px;width:10px;height:10px;border:1.4px solid #C42B36;border-radius:50%;opacity:.588;animation:ds-reminder-ripple 1.8s linear infinite}@keyframes ds-reminder-outline{50%{left:5px;top:5px;width:38px;height:38px;border-width:2.5px;border-radius:9px;opacity:.941}}@keyframes ds-reminder-badge{50%{left:31.5px;top:7.5px;width:9px;height:9px;opacity:1}}@keyframes ds-reminder-ripple{to{left:25px;top:1px;width:22px;height:22px;opacity:0}}@media(prefers-reduced-motion:reduce),(forced-colors:active){.ds-reminder-outline,.ds-reminder-badge,.ds-reminder-ripple{animation:none;opacity:1}.ds-reminder-ripple{display:none}}@media(forced-colors:active){.ds-reminder-outline{border-color:Highlight}.ds-reminder-badge{background:Highlight}}"
     }
   ],
   "narrative": {
@@ -457,7 +465,7 @@
       "Calendar left, meetings right, with a fine vertical divider.",
       "Compact type hierarchy and distinct event time, title and source-calendar roles.",
       "Settings and OAuth editing stay inside one reusable native tool window.",
-      "A quiet reminder accent persists until the user clicks the date."
+      "A visible breathing reminder persists until the user clicks the date."
     ],
     "rules": [],
     "dos": [
