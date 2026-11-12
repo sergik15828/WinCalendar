@@ -17,6 +17,7 @@ namespace WinCalendar
         private readonly CalendarSync sync;
         private readonly System.Windows.Forms.Timer refreshTimer;
         private CancellationTokenSource login;
+        private GoogleSetupDialog setupDialog;
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
         private bool disposed, disconnecting, configuring;
         private Rectangle anchorArea;
@@ -25,8 +26,9 @@ namespace WinCalendar
         internal bool Visible { get { return dropDown.Visible; } }
         internal IntPtr Handle { get { return dropDown.Handle; } }
         internal Rectangle Bounds { get { return dropDown.Bounds; } }
+        internal GoogleSetupDialog ActiveGoogleSetup { get { return setupDialog; } }
 
-        internal CalendarPopup(Func<DateTime> now, Action openGoogle, bool connectGoogle = false)
+        internal CalendarPopup(Func<DateTime> now, Action openGoogle, bool connectGoogle = false, GoogleCalendarClient client = null)
         {
             clock = now;
             Panel = new CalendarPanel(now());
@@ -37,11 +39,11 @@ namespace WinCalendar
             Panel.EventRequested += delegate(string url) { Hide(); Program.OpenCalendarEvent(url); };
             Panel.DismissRequested += delegate { Hide(); };
             refreshTimer = new System.Windows.Forms.Timer { Interval = 120000 };
-            if (connectGoogle)
+            if (connectGoogle || client != null)
             {
                 try
                 {
-                    google = new GoogleCalendarClient(new WindowsCredentialStore());
+                    google = client ?? new GoogleCalendarClient(new WindowsCredentialStore());
                     sync = new CalendarSync(google, new CalendarCache(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "GoogleCache")));
                     sync.Changed += Panel.SetData;
                 }
@@ -62,6 +64,7 @@ namespace WinCalendar
 
         internal void Toggle(Point anchor)
         {
+            if (RevealGoogleSetup()) return;
             if (Visible) { Hide(); return; }
             // Taskbar click closes the native popup before the launcher forwards
             // its command. Treat that same click as close rather than reopening.
@@ -115,14 +118,26 @@ namespace WinCalendar
 
         internal async void ConfigureGoogle() { await ConfigureGoogleAsync(); }
 
+        private bool RevealGoogleSetup()
+        {
+            if (setupDialog == null || setupDialog.IsDisposed) return false;
+            Hide(); setupDialog.Reveal(); return true;
+        }
+
         private async Task<bool> ConfigureGoogleAsync()
         {
+            if (RevealGoogleSetup()) return false;
             if (google == null || login != null || disconnecting || configuring || disposed) return false;
             Hide(); sync.Cancel(); configuring = true;
             try
             {
                 using (GoogleSetupDialog dialog = new GoogleSetupDialog())
                 {
+                    setupDialog = dialog;
+                    // Leave the dropdown's click/close dispatch before starting
+                    // a modal loop, so it cannot deactivate the new dialog.
+                    await Task.Yield();
+                    if (disposed) return false;
                     if (dialog.ShowDialog() != DialogResult.OK) return false;
                     try { await google.ConfigureAsync(dialog.ClientId, dialog.ClientSecret, lifetime.Token); if (!disposed) sync.Clear(); return !disposed; }
                     catch (Exception error)
@@ -133,15 +148,16 @@ namespace WinCalendar
                     }
                 }
             }
-            finally { configuring = false; }
+            finally { setupDialog = null; configuring = false; }
         }
 
         private async Task ConnectAsync()
         {
+            if (RevealGoogleSetup()) return;
             if (google == null || disposed || disconnecting || configuring) return;
             if (login != null) { login.Cancel(); return; }
             if (!google.Configured) await ConfigureGoogleAsync();
-            if (!google.Configured) return;
+            if (disposed || !google.Configured) return;
             Hide(); sync.Cancel();
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); login = cancellation;
             Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = "Завершите вход в открывшемся браузере." });
@@ -188,6 +204,7 @@ namespace WinCalendar
         public void Dispose()
         {
             disposed = true; lifetime.Cancel();
+            if (setupDialog != null && !setupDialog.IsDisposed) setupDialog.Close();
             if (sync != null) sync.Dispose();
             refreshTimer.Dispose(); dropDown.Dispose();
             if (google != null) google.Dispose();

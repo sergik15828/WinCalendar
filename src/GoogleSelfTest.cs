@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -160,8 +161,89 @@ namespace WinCalendar
             }
             finally { nativeStore.Delete(credentialName); }
             check(nativeStore.Read(credentialName) == null, "Synthetic credential is removed after testing");
+            await TestSetupRecoveryAsync(check, directory);
             CaptureEvents(directory, check);
         }
+
+        private static async Task TestSetupRecoveryAsync(Action<bool, string> check, string directory)
+        {
+            GoogleCalendarClient client = new GoogleCalendarClient(new MemoryCredentials(), new FixtureHandler(delegate { throw new HttpRequestException(); }));
+            using (CalendarPopup popup = new CalendarPopup(delegate { return new DateTime(2026, 11, 12); }, delegate { }, false, client))
+            {
+                for (int round = 0; round < 2; round++)
+                {
+                    TaskCompletionSource<bool> completed = new TaskCompletionSource<bool>();
+                    using (System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 40 })
+                    {
+                        int attempts = 0;
+                        timer.Tick += delegate
+                        {
+                            GoogleSetupDialog dialog = popup.ActiveGoogleSetup;
+                            if (dialog == null || !dialog.Visible)
+                            {
+                                if (++attempts < 100) return;
+                                timer.Stop(); completed.TrySetException(new InvalidOperationException("Sign-in button did not show the setup dialog")); return;
+                            }
+                            timer.Stop();
+                            Exception failure = null;
+                            try
+                            {
+                                IntPtr original = dialog.Handle;
+                                check(Application.OpenForms.OfType<GoogleSetupDialog>().Count() == 1 && !dialog.ShowInTaskbar,
+                                    "Sign-in opens one setup tool window without a taskbar button, round " + round);
+                                TextBox id = dialog.Controls.OfType<TextBox>().Single(t => !t.UseSystemPasswordChar);
+                                id.Text = "fixture-unsaved.apps.googleusercontent.com";
+                                using (Form cover = new Form { Text = "Synthetic focus test", ShowInTaskbar = false, FormBorderStyle = FormBorderStyle.FixedToolWindow })
+                                {
+                                    cover.Show(); cover.Activate();
+                                    popup.Toggle(new Point(50, 50));
+                                    check(popup.ActiveGoogleSetup.Handle == original && dialog.Visible && !popup.Visible && IsAbove(original, cover.Handle),
+                                        "Taskbar command raises the existing setup above another window, round " + round);
+                                    cover.Activate(); popup.ConfigureGoogle();
+                                    check(popup.ActiveGoogleSetup.Handle == original && Application.OpenForms.OfType<GoogleSetupDialog>().Count() == 1 && IsAbove(original, cover.Handle),
+                                        "Repeated setup command focuses the same dialog without duplicates, round " + round);
+                                    dialog.WindowState = FormWindowState.Minimized; popup.Toggle(new Point(50, 50));
+                                    check(dialog.WindowState == FormWindowState.Normal && dialog.Visible && id.Text == "fixture-unsaved.apps.googleusercontent.com",
+                                        "Taskbar command restores setup and preserves unsaved input, round " + round);
+                                    if (round == 0)
+                                        using (Bitmap bitmap = new Bitmap(dialog.Width, dialog.Height))
+                                        { dialog.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size)); bitmap.Save(Path.Combine(directory, "google-setup-recovered.png"), ImageFormat.Png); }
+                                    cover.Close();
+                                }
+                            }
+                            catch (Exception error) { failure = error; }
+                            finally
+                            {
+                                if (round == 0) dialog.Close(); else ((Button)dialog.CancelButton).PerformClick();
+                            }
+                            if (failure == null) completed.TrySetResult(true); else completed.TrySetException(failure);
+                        };
+                        popup.ShowAt(new Point(50, 50), Screen.PrimaryScreen.WorkingArea);
+                        timer.Start(); popup.Panel.ConnectButton.PerformClick();
+                        // The dropdown callback has yielded but the modal loop
+                        // has not started: another command must not duplicate it.
+                        popup.ConfigureGoogle();
+                        await completed.Task;
+                        await Task.Delay(20);
+                        check(popup.ActiveGoogleSetup == null, "Closing or cancelling setup permits the next sign-in attempt, round " + round);
+                    }
+                }
+            }
+        }
+
+        private static bool IsAbove(IntPtr first, IntPtr second)
+        {
+            IntPtr found = IntPtr.Zero;
+            EnumWindows(delegate(IntPtr window, IntPtr ignored)
+            {
+                if (window != first && window != second) return true;
+                found = window; return false;
+            }, IntPtr.Zero);
+            return found == first;
+        }
+
+        private delegate bool WindowCallback(IntPtr window, IntPtr data);
+        [DllImport("user32.dll")] private static extern bool EnumWindows(WindowCallback callback, IntPtr data);
 
         private static void CaptureEvents(string directory, Action<bool, string> check)
         {

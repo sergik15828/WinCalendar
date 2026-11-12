@@ -69,6 +69,18 @@ namespace WinCalendar
             base.OnLoad(args);
         }
 
+        protected override void OnShown(EventArgs args)
+        {
+            base.OnShown(args); Reveal();
+        }
+
+        internal void Reveal()
+        {
+            if (IsDisposed || !Visible) return;
+            if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+            BringToFront(); Activate(); SetForegroundWindow(Handle);
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing) { clientId.Clear(); secret.Clear(); }
@@ -77,5 +89,6 @@ namespace WinCalendar
         }
 
         [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr window);
+        [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr window);
     }
 }

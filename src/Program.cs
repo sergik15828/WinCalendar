@@ -117,6 +117,10 @@ namespace WinCalendar
             {
                 long owner = GetProp(window, WindowMarker).ToInt64();
                 if (owner == 0 || (targetProcess == 0 ? owner == caller : owner != targetProcess)) return true;
+                // A user-launched secondary process passes activation rights
+                // to the existing host before forwarding an interactive command.
+                if (command == OpenCalendarCommand || command == MenuCommand || command == GoogleSetupCommand)
+                    AllowSetForegroundWindow((uint)owner);
                 posted = PostMessage(window, CommandMessage, new IntPtr(command), IntPtr.Zero);
                 return !posted;
             }, IntPtr.Zero);
@@ -124,6 +128,8 @@ namespace WinCalendar
         }
 
         private delegate bool WindowCallback(IntPtr window, IntPtr parameter);
+        [DllImport("user32.dll")]
+        private static extern bool AllowSetForegroundWindow(uint process);
         [DllImport("user32.dll")]
         private static extern bool EnumWindows(WindowCallback callback, IntPtr parameter);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
