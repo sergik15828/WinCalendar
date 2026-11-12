@@ -8,7 +8,7 @@ namespace WinCalendar
     internal sealed class CalendarSymbolButton : Button
     {
         internal CalendarPalette Palette;
-        internal bool IsClose, HasAttention;
+        internal bool IsClose, IsCalendar, HasAttention;
         private bool hover;
         internal CalendarSymbolButton()
         {
@@ -29,6 +29,17 @@ namespace WinCalendar
                 {
                     args.Graphics.DrawLine(pen, x - 5 * scale, y - 5 * scale, x + 5 * scale, y + 5 * scale);
                     args.Graphics.DrawLine(pen, x + 5 * scale, y - 5 * scale, x - 5 * scale, y + 5 * scale);
+                }
+                else if (IsCalendar)
+                {
+                    args.Graphics.DrawRectangle(pen, x - 7 * scale, y - 6 * scale, 14 * scale, 13 * scale);
+                    args.Graphics.DrawLine(pen, x - 7 * scale, y - 2 * scale, x + 7 * scale, y - 2 * scale);
+                    args.Graphics.DrawLine(pen, x - 3 * scale, y - 8 * scale, x - 3 * scale, y - 4 * scale);
+                    args.Graphics.DrawLine(pen, x + 3 * scale, y - 8 * scale, x + 3 * scale, y - 4 * scale);
+                    using (Brush dot = new SolidBrush(Palette.Ink))
+                        for (int row = 0; row < 2; row++)
+                        for (int column = 0; column < 3; column++)
+                            args.Graphics.FillRectangle(dot, x - 4.5f * scale + column * 4 * scale, y + row * 3 * scale, 1.5f * scale, 1.5f * scale);
                 }
                 else
                 {

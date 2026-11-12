@@ -20,7 +20,7 @@ namespace WinCalendar
                     End = CalendarEvent.Boundary(date.AddHours(i + 1), TimeZoneInfo.Local).ToString("o"),
                     Url = "https://calendar.google.com/calendar/event?eid=scroll-" + i, MeetUrl = "https://meet.google.com/abc-defg-hij" });
             int googleOpened = 0;
-            using (CalendarPopup popup = new CalendarPopup(delegate { return date.AddHours(10); }, delegate { googleOpened++; }))
+            using (CalendarPopup popup = new CalendarPopup(delegate { return date; }, delegate { googleOpened++; }))
             {
                 popup.ShowAt(new Point(400, 500), Screen.PrimaryScreen.WorkingArea);
                 popup.Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Connected, HasSnapshot = true, Events = events });
@@ -44,8 +44,8 @@ namespace WinCalendar
                     check(list.TopIndex == 0, "Scrolling back reaches the first card without overshoot at " + dpi + " DPI");
                     list.TopIndex = 8;
                     Save(popup.Panel, directory, "agenda-past-future-" + (dark ? "dark" : "light") + "-" + dpi + ".png");
-                    check(list.Items[8].ToString().Contains("Завершено") && !list.Items[10].ToString().Contains("Завершено"),
-                        "Past events are identified while ongoing and future events remain active");
+                    check(!list.Items[8].ToString().Contains("Завершено") && !list.Items[10].ToString().Contains("Завершено"),
+                        "Displayed agenda contains unended events");
                 }
                 list.TopIndex = 0;
                 list.PointerPosition = delegate { return list.PointToScreen(new Point(list.Width / 2, 24)); };

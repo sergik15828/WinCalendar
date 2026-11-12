@@ -58,6 +58,7 @@ namespace WinCalendar
                 await GoogleSelfTest.RunAsync(directory, Check);
                 await FeaturesSelfTest.RunAsync(directory, Check);
                 AgendaInteractionSelfTest.Run(directory, Check);
+                RemainingMeetingsSelfTest.Run(directory, Check);
                 await ReminderSelfTest.RunAsync(directory, Check);
                 Results.Add("PASS all checks; popup uses a tool window, background startup stays hidden.");
             }
