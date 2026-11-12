@@ -64,6 +64,7 @@ namespace WinCalendar
                 ReminderTimingSelfTest.Run(directory, Check);
                 await WidgetUsabilitySelfTest.RunAsync(directory, Check);
                 UnifiedPreferencesSelfTest.Run(directory, Check);
+                await WeatherSelfTest.RunAsync(directory, Check);
                 Results.Add("PASS all checks; popup uses a tool window, background startup stays hidden.");
             }
             catch (Exception error)

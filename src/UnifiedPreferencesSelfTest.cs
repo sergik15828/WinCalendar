@@ -40,9 +40,9 @@ namespace WinCalendar
                     PreferencesEditor editor = popup.PreferencesPage;
                     Rectangle footer = editor.BackButton.Bounds;
                     bool pagesFit = true;
-                    for (int page = 0; page < 5; page++) { editor.ShowPage(page); pagesFit &= editor.SelectedPage == page && editor.LayoutFits && editor.ScrollOffset == 0; }
+                    for (int page = 0; page < 6; page++) { editor.ShowPage(page); pagesFit &= editor.SelectedPage == page && editor.LayoutFits && editor.ScrollOffset == 0; }
                     check(pagesFit && editor.BackButton.Bounds == footer && editor.NaturalSize.Height < 600,
-                        "Five compact preference tabs fit without scrolling and keep footer actions fixed");
+                        "Six compact preference tabs fit without scrolling and keep footer actions fixed");
                     editor.ShowPage(2);
                     ComboBox chime = CalendarPanel.Descendants(editor).OfType<ComboBox>().Single(c => c.AccessibleName == "Мелодия напоминания");
                     int selection = chime.SelectedIndex;
@@ -86,10 +86,10 @@ namespace WinCalendar
                         options.Calendars.Add(new CalendarChoice { Id = "fixture-a", Name = "Team", Color = "#2563A6" });
                         options.Calendars.Add(new CalendarChoice { Id = "fixture-b", Name = "Personal", Color = "#7950B3" });
                         popup.PreferencesPage.BeginEdit(options); popup.PreferencesPage.SetDpi(dpi, dark); popup.ViewWindow.ClientSize = popup.PreferencesPage.NaturalSize;
-                        using (Bitmap sheet = new Bitmap(popup.PreferencesPage.Width, popup.PreferencesPage.Height * 5))
+                        using (Bitmap sheet = new Bitmap(popup.PreferencesPage.Width, popup.PreferencesPage.Height * 6))
                         using (Graphics g = Graphics.FromImage(sheet))
                         {
-                            for (int i = 0; i < 5; i++)
+                            for (int i = 0; i < 6; i++)
                             {
                                 popup.PreferencesPage.ShowPage(i);
                                 using (Bitmap image = popup.PreferencesPage.CaptureFrame())

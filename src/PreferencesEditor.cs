@@ -19,6 +19,14 @@ namespace WinCalendar
         private readonly CheckedListBox calendars;
         private readonly ComboBox color, sound, strength, language, frequency;
         private readonly CheckBox audio, quiet, privacy, nextTip, weatherWidget, startup, paydayEnabled;
+        private readonly CheckBox ownWeather;
+        private readonly TextBox cityQuery;
+        private readonly ListBox cityResults;
+        private readonly Label selectedCity, cityStatus;
+        private WeatherLocation selectedWeatherCity;
+        private WeatherClient weatherClient;
+        private System.Threading.CancellationTokenSource citySearch;
+        private int searchRevision;
         private readonly RadioButton eventTiming, fiveMinutes, twoMinutes;
         private readonly NumericUpDown firstDay, secondDay;
         private readonly TrackBar volume;
@@ -59,8 +67,9 @@ namespace WinCalendar
             return frame;
         }
 
-        internal PreferencesEditor()
+        internal PreferencesEditor(WeatherClient weatherApi = null)
         {
+            weatherClient = weatherApi;
             AutoScaleMode = AutoScaleMode.None; Size = new Size(720, 460);
             title = Label(this, UiText.Get("Параметры"), new Rectangle(20, 14, 660, 34)); title.Tag = "heading";
             Label version = Label(this, "WinCalendar · " + typeof(PreferencesEditor).Assembly.GetName().Version.ToString(3), new Rectangle(20, 44, 500, 16)); version.Tag = "muted";
@@ -72,7 +81,7 @@ namespace WinCalendar
             Panel general = Section(UiText.Get("Основное"), new Rectangle(0, 0, 336, 264));
             Label(general, UiText.Get("Язык интерфейса"), new Rectangle(0, 32, 312, 22));
             language = Combo(general, new Rectangle(0, 58, 312, 30), new[] { "Русский", "English" }); language.AccessibleName = "Language / Язык";
-            weatherWidget = Check(general, UiText.Get("Виджет рядом с погодой"), new Rectangle(0, 100, 324, 28));
+            weatherWidget = Check(general, UiText.Get("Виджет в панели задач"), new Rectangle(0, 100, 324, 28));
             startup = Check(general, UiText.Get("Запускать с Windows"), new Rectangle(0, 132, 324, 28));
             privacy = Check(general, UiText.Get("Приватный режим: скрывать названия встреч и календарей"), new Rectangle(0, 168, 330, 40));
             nextTip = Check(general, UiText.Get("Ближайшая встреча при наведении на дату в панели задач"), new Rectangle(0, 216, 330, 40));
@@ -150,11 +159,51 @@ namespace WinCalendar
             connection = Action(account, UiText.Get("Настроить подключение"), new Rectangle(360, 42, 312, 34));
             connection.Click += delegate { if (ConnectionRequested != null) ConnectionRequested(this, EventArgs.Empty); };
 
+            Panel weather = Section(UiText.Get("Погода"), new Rectangle(0, 0, 680, 276));
+            ownWeather = Check(weather, UiText.Get("Показывать погоду справа от даты"), new Rectangle(0, 32, 336, 28));
+            Label(weather, UiText.Get("Поиск города"), new Rectangle(0, 76, 336, 22));
+            cityQuery = new TextBox { Bounds = new Rectangle(0, 104, 224, 28), MaxLength = 100, AccessibleName = UiText.Get("Поиск города") }; weather.Controls.Add(cityQuery);
+            Button searchCity = Action(weather, UiText.Get("Найти"), new Rectangle(232, 102, 104, 30));
+            cityResults = new ListBox { Bounds = new Rectangle(0, 148, 336, 120), IntegralHeight = false, HorizontalScrollbar = true, AccessibleName = UiText.Get("Найденные города") }; weather.Controls.Add(cityResults);
+            selectedCity = Label(weather, "", new Rectangle(344, 36, 312, 56));
+            cityStatus = Label(weather, UiText.Get("Выберите город из результатов поиска."), new Rectangle(344, 100, 312, 44)); cityStatus.Tag = "muted";
+            ownWeather.CheckedChanged += delegate
+            {
+                if (loading) return;
+                cityStatus.Text = ownWeather.Checked ? UiText.Get("Выключите «Мини-приложения» Windows.\nПосле сохранения откроются параметры.")
+                    : UiText.Get("Включите «Мини-приложения» Windows.\nКалендарь появится справа от погоды.");
+            };
+            Button resetCity = Action(weather, UiText.Get("Сбросить город"), new Rectangle(344, 152, 150, 30));
+            resetCity.Click += delegate { selectedWeatherCity = null; cityResults.ClearSelected(); UpdateSelectedCity(); };
+            Button attribution = Action(weather, "Open-Meteo · CC BY 4.0", new Rectangle(344, 190, 312, 30)); attribution.Click += delegate { Program.OpenBrowser("https://open-meteo.com/"); };
+            Button taskbarSettings = Action(weather, UiText.Get("Погода Windows: настройки"), new Rectangle(344, 232, 312, 32));
+            taskbarSettings.Click += delegate { Program.OpenBrowser("ms-settings:taskbar"); };
+            cityResults.SelectedIndexChanged += delegate { WeatherLocation value = cityResults.SelectedItem as WeatherLocation; if (value != null) { selectedWeatherCity = value; UpdateSelectedCity(); } };
+            searchCity.Click += async delegate
+            {
+                string query = cityQuery.Text.Trim(); if (query.Length < 2) { cityStatus.Text = UiText.Get("Введите минимум 2 символа."); return; }
+                if (citySearch != null) { citySearch.Cancel(); citySearch.Dispose(); }
+                citySearch = new System.Threading.CancellationTokenSource(); var token = citySearch.Token;
+                int request = ++searchRevision; cityStatus.Text = UiText.Get("Поиск…"); searchCity.Enabled = false;
+                try
+                {
+                    if (weatherClient == null) weatherClient = new WeatherClient();
+                    WeatherLocation[] values = await weatherClient.SearchAsync(query, UiText.Language, token);
+                    if (IsDisposed || request != searchRevision) return;
+                    cityResults.Items.Clear(); cityResults.Items.AddRange(values);
+                    cityStatus.Text = UiText.Get(values.Length == 0 ? "Город не найден. Уточните название." : "Выберите город из результатов поиска.");
+                }
+                catch (Exception) { if (!IsDisposed && request == searchRevision) cityStatus.Text = UiText.Get("Не удалось найти город. Повторите поиск."); }
+                finally { if (!IsDisposed) searchCity.Enabled = true; }
+            };
+            cityQuery.KeyDown += delegate(object sender, KeyEventArgs e) { if (e.KeyCode == Keys.Enter) { searchCity.PerformClick(); e.Handled = e.SuppressKeyPress = true; } };
+
             AddPage(UiText.Get("Основное"), general, pinned);
             AddPage(UiText.Get("Напоминания"), reminder);
             AddPage(UiText.Get("Звук"), sounds, silence);
             AddPage(UiText.Get("Зарплата"), salary);
             AddPage(UiText.Get("Календари"), sources, account);
+            AddPage(UiText.Get("Погода"), weather);
             general.Location = Point.Empty;
             pinned.Bounds = new Rectangle(344, 0, 336, 196);
             pinned.Controls.OfType<Label>().First(c => Object.Equals(c.Tag, "section")).Width = 336;
@@ -178,7 +227,7 @@ namespace WinCalendar
             error = Label(this, "", new Rectangle(132, 406, 340, 34)); error.AutoEllipsis = true;
             back = Action(this, UiText.Get("Назад"), new Rectangle(20, 406, 96, 34));
             save = Action(this, UiText.Get("Сохранить"), new Rectangle(496, 406, 204, 34)); save.Tag = "primary";
-            viewport.TabIndex = 5; back.TabIndex = 6; save.TabIndex = 7; close.TabIndex = 8;
+            viewport.TabIndex = 6; back.TabIndex = 7; save.TabIndex = 8; close.TabIndex = 9;
             back.Click += delegate { if (BackRequested != null) BackRequested(this, EventArgs.Empty); };
             save.Click += delegate { Collect(); if (SaveRequested != null) SaveRequested(draft); };
             foreach (Control control in CalendarPanel.Descendants(this)) if (!(control.Parent is NumericUpDown)) bounds[control] = control.Bounds;
@@ -190,7 +239,7 @@ namespace WinCalendar
             int index = pages.Count;
             Panel page = new BufferedPanel { Bounds = new Rectangle(0, 0, 680, 276), Visible = index == 0 };
             content.Controls.Add(page); foreach (Panel section in sections) page.Controls.Add(section); pages.Add(page);
-            Button tab = Action(this, text, new Rectangle(20 + index * 136, 68, 136, 32));
+            Button tab = Action(this, text, new Rectangle(20 + index * 113, 68, 113, 32));
             tab.AccessibleRole = AccessibleRole.PageTab; tab.TabIndex = index;
             tab.Click += delegate { ShowPage(index); };
             tabs.Add(tab);
@@ -198,7 +247,10 @@ namespace WinCalendar
 
         internal void BeginEdit(AppPreferences value)
         {
+            searchRevision++; if (citySearch != null) citySearch.Cancel();
             draft = new JavaScriptSerializer().Deserialize<AppPreferences>(Json.Serialize(value)); draft.Normalize(); loading = true;
+            ownWeather.Checked = draft.WeatherEnabled; selectedWeatherCity = draft.WeatherCity; cityResults.Items.Clear(); cityQuery.Text = ""; UpdateSelectedCity();
+            cityStatus.Text = draft.WeatherEnabled ? UiText.Get("Выберите город из результатов поиска.") : UiText.Get("Включите «Мини-приложения» Windows.\nКалендарь появится справа от погоды.");
             calendars.Items.Clear(); foreach (CalendarChoice item in draft.Calendars) calendars.Items.Add(item, !draft.DisabledCalendars.Contains(item.Id));
             audio.Checked = draft.SoundEnabled; sound.SelectedIndex = draft.SoundStyle; volume.Value = draft.Volume;
             quiet.Checked = draft.QuietEnabled; from.Value = DateTime.Today.AddMinutes(draft.QuietStart); to.Value = DateTime.Today.AddMinutes(draft.QuietEnd);
@@ -209,6 +261,7 @@ namespace WinCalendar
             volumeLabel.Text = UiText.Get("Громкость · ") + volume.Value + "%"; error.Text = "";
             loading = false; if (calendars.Items.Count > 0) calendars.SelectedIndex = 0; LoadCalendarColor(); UpdateSalaryPreview(); ShowPage(0);
         }
+        private void UpdateSelectedCity() { selectedCity.Text = UiText.Get("Выбранный город") + "\n" + (selectedWeatherCity == null ? UiText.Get("Город не выбран") : selectedWeatherCity.ToString()); }
         private void UpdateSalaryPreview()
         {
             if (paydayPreview == null) return;
@@ -228,6 +281,7 @@ namespace WinCalendar
             draft.QuietEnabled = quiet.Checked; draft.QuietStart = from.Value.Hour * 60 + from.Value.Minute; draft.QuietEnd = to.Value.Hour * 60 + to.Value.Minute;
             draft.PrivateMode = privacy.Checked; draft.ShowNextTooltip = nextTip.Checked; draft.PulseStrength = strength.SelectedIndex;
             draft.Language = language.SelectedIndex == 1 ? "en" : "ru"; draft.WeatherWidgetChange = weatherWidget.Checked; draft.StartupChange = startup.Checked;
+            draft.WeatherEnabled = ownWeather.Checked; draft.WeatherCity = selectedWeatherCity;
             draft.ReminderTiming = fiveMinutes.Checked ? 1 : twoMinutes.Checked ? 2 : 0;
             draft.PaydayEnabled = paydayEnabled.Checked; draft.PaydayFrequency = frequency.SelectedIndex == 1 ? 2 : 1; draft.PaydayFirst = (int)firstDay.Value; draft.PaydaySecond = (int)secondDay.Value; draft.Normalize();
         }
@@ -279,7 +333,7 @@ namespace WinCalendar
             CalendarPalette palette = CalendarPalette.Create(dark); BackColor = palette.Surface;
             foreach (Control c in CalendarPanel.Descendants(this))
             {
-                c.BackColor = c is ComboBox || c is CheckedListBox || c is NumericUpDown ? palette.EventSurface : palette.Surface; c.ForeColor = palette.Ink;
+                c.BackColor = c is ComboBox || c is ListBox || c is TextBox || c is NumericUpDown ? palette.EventSurface : palette.Surface; c.ForeColor = palette.Ink;
                 if (Object.Equals(c.Tag, "muted")) c.ForeColor = palette.Secondary;
                 Button b = c as Button; if (b != null) b.FlatAppearance.MouseOverBackColor = palette.Hover;
                 if (Object.Equals(c.Tag, "primary")) { c.BackColor = palette.Accent; c.ForeColor = palette.OnAccent; }
@@ -305,6 +359,12 @@ namespace WinCalendar
         {
             if (message.Msg != 0x20a || !Visible || FindForm() == null || GetAncestor(message.HWnd, 2) != FindForm().Handle
                 || !viewport.ClientRectangle.Contains(viewport.PointToClient(PointerPosition())) || CalendarPanel.Descendants(this).OfType<ComboBox>().Any(c => c.DroppedDown)) return false;
+            ListBox list = CalendarPanel.Descendants(this).OfType<ListBox>().FirstOrDefault(c => c.Visible && c.ClientRectangle.Contains(c.PointToClient(PointerPosition())));
+            if (list != null)
+            {
+                if (message.HWnd == list.Handle) return false;
+                SendMessage(list.Handle, message.Msg, message.WParam, message.LParam); return true;
+            }
             wheel += (short)(message.WParam.ToInt64() >> 16); int notches = wheel / 120; wheel %= 120;
             int lines = SystemInformation.MouseWheelScrollLines;
             int step = lines < 0 ? viewport.ClientSize.Height - Scale(24) : Scale(16) * Math.Max(0, lines);
@@ -321,8 +381,9 @@ namespace WinCalendar
             return base.ProcessCmdKey(ref msg, key);
         }
         protected override void Dispose(bool disposing)
-        { if (disposing) Application.RemoveMessageFilter(this); base.Dispose(disposing); if (disposing) { if (body != null) body.Dispose(); if (heading != null) heading.Dispose(); if (sectionFont != null) sectionFont.Dispose(); } }
+        { if (disposing) { Application.RemoveMessageFilter(this); if (citySearch != null) { citySearch.Cancel(); citySearch.Dispose(); } if (weatherClient != null) weatherClient.Dispose(); } base.Dispose(disposing); if (disposing) { if (body != null) body.Dispose(); if (heading != null) heading.Dispose(); if (sectionFont != null) sectionFont.Dispose(); } }
         private sealed class BufferedPanel : Panel { internal BufferedPanel() { DoubleBuffered = true; } }
         [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr window, uint flags);
+        [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr parameter, IntPtr position);
     }
 }

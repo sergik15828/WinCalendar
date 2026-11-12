@@ -52,8 +52,8 @@ namespace WinCalendar
             RefreshDate(true);
             calendar = new CalendarPopup(now, Program.OpenGoogleCalendar, integrateWithShell);
             calendar.ExitRequested += delegate { Close(); };
-            calendar.PreferencesChanged += delegate { RefreshDate(true); RefreshHostPresence(); if (weatherDate != null) weatherDate.RefreshPlacement(); };
-            if (integrateWithShell) weatherDate = new WeatherDateWindow(now, ToggleCalendar);
+            calendar.PreferencesChanged += delegate { RefreshDate(true); RefreshHostPresence(); if (weatherDate != null) { weatherDate.Configure(calendar.Preferences); weatherDate.RefreshPlacement(); } };
+            if (integrateWithShell) { weatherDate = new WeatherDateWindow(now, ToggleCalendar, calendar.ShowWeather, calendar.UpdateWeather); weatherDate.Configure(calendar.Preferences); }
             calendar.ViewWindow.Activated += delegate { if (weatherDate != null) weatherDate.KeepAboveTaskbar(); };
             calendar.ViewWindow.VisibleChanged += delegate
             { if (weatherDate != null && weatherDate.IsHandleCreated && !weatherDate.IsDisposed) weatherDate.BeginInvoke(new Action(weatherDate.KeepAboveTaskbar)); };

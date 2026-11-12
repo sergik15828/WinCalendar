@@ -13,8 +13,9 @@ namespace WinCalendar
     {
         internal IntPtr Taskbar;
         internal Rectangle Bar, DateBounds;
+        internal bool SystemWeatherVisible;
         private readonly DateTime validatedAt = DateTime.UtcNow;
-        internal static WeatherPlacement Find(WeatherPlacement previousPlacement = null)
+        internal static WeatherPlacement Find(WeatherPlacement previousPlacement = null, bool independent = false, int logicalWidth = WeatherWidgetRenderer.Width)
         {
             IntPtr previous = SetThreadDpiAwarenessContext(new IntPtr(-4));
             try
@@ -38,11 +39,11 @@ namespace WinCalendar
                 }
                 double scale = GetDpiForWindow(bar) / 96.0;
                 int height = Math.Min(bounds.Height - 4, (int)Math.Round(WeatherWidgetRenderer.Height * scale));
-                int width = (int)Math.Round(WeatherWidgetRenderer.Width * height / (double)WeatherWidgetRenderer.Height);
-                Rectangle date = Place(bounds, weather, occupied, width, height);
-                if (weather.IsEmpty && CanRetain(previousPlacement) && previousPlacement.Bar == bounds && !occupied.Any(r => r.IntersectsWith(previousPlacement.DateBounds)))
+                int width = (int)Math.Round(logicalWidth * height / (double)WeatherWidgetRenderer.Height);
+                Rectangle date = independent && weather.IsEmpty ? PlaceStandalone(bounds, occupied, width, height) : Place(bounds, weather, occupied, width, height);
+                if (!independent && weather.IsEmpty && CanRetain(previousPlacement) && previousPlacement.Bar == bounds && !occupied.Any(r => r.IntersectsWith(previousPlacement.DateBounds)))
                     return previousPlacement;
-                return date.IsEmpty ? null : new WeatherPlacement { Taskbar = bar, Bar = bounds, DateBounds = date };
+                return date.IsEmpty ? null : new WeatherPlacement { Taskbar = bar, Bar = bounds, DateBounds = date, SystemWeatherVisible = !weather.IsEmpty };
             }
             catch (Exception) { return CanRetain(previousPlacement) ? previousPlacement : null; }
             finally { SetThreadDpiAwarenessContext(previous); }
@@ -69,6 +70,12 @@ namespace WinCalendar
                 if (bar.Contains(candidate) && !occupied.Any(r => r.IntersectsWith(candidate))) return candidate;
             }
             return Rectangle.Empty;
+        }
+        internal static Rectangle PlaceStandalone(Rectangle bar, IEnumerable<Rectangle> occupied, int width, int height)
+        {
+            int inset = Math.Max(8, height / 5);
+            Rectangle candidate = new Rectangle(bar.Left + inset, bar.Top + (bar.Height - height) / 2, width, height);
+            return bar.Contains(candidate) && !occupied.Any(r => r.IntersectsWith(candidate)) ? candidate : Rectangle.Empty;
         }
         internal static bool TaskbarExposed(WeatherPlacement placement)
         {

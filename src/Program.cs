@@ -36,6 +36,7 @@ namespace WinCalendar
                 }
                 if (args.Length == 2 && args[0] == "--self-test") return SelfTest.Run(args[1]);
                 if (args.Length == 2 && args[0] == "--weather-probe") return WeatherInstalledProbe.Run(args[1]);
+                if (args.Length == 2 && args[0] == "--weather-api-probe") return WeatherApiProbe.RunAsync(args[1]).GetAwaiter().GetResult();
                 int command = GetLaunchCommand(args.Length == 0 ? null : args[0]);
                 if (args.Length > 1 || command < 0)
                 {

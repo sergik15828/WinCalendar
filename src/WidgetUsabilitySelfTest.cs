@@ -46,7 +46,7 @@ namespace WinCalendar
                     AppPreferences saved = null; editor.SaveRequested += value => saved = value;
                     ComboBox selector = CalendarPanel.Descendants(editor).OfType<ComboBox>().Single(c => c.AccessibleName == "Language / Язык");
                     selector.SelectedIndex = 0;
-                    CalendarPanel.Descendants(editor).OfType<CheckBox>().Single(c => c.Text == "Widget beside weather").Checked = false;
+                    CalendarPanel.Descendants(editor).OfType<CheckBox>().Single(c => c.Text == "Taskbar widget").Checked = false;
                     CalendarPanel.Descendants(editor).OfType<RadioButton>().Single(c => c.Text == "2 minutes before").Checked = true;
                     editor.Controls.OfType<Button>().Single(b => b.Text == "Save").PerformClick();
                     check(saved != null && saved.Language == "ru" && saved.WeatherWidgetChange == false && saved.ReminderTiming == 2,

@@ -11,6 +11,7 @@ namespace WinCalendar
     internal static class WeatherWidgetRenderer
     {
         internal const int Width = 160, Height = 44;
+        internal const int CombinedWidth = 320;
         internal const int ReminderHeadroom = 28;
         internal static bool DarkTaskbar()
         {
@@ -22,7 +23,7 @@ namespace WinCalendar
             catch (UnauthorizedAccessException) { return true; }
             catch (System.Security.SecurityException) { return true; }
         }
-        internal static Bitmap Draw(DateTime date, int width, int height, bool dark, bool hover, bool reminder = false, double phase = 0)
+        internal static Bitmap Draw(DateTime date, int width, int height, bool dark, bool hover, bool reminder = false, double phase = 0, WeatherView weather = null, bool showWeather = false)
         {
             int headroom = reminder && TaskbarAnchor.ReminderMotion ? (int)Math.Round(ReminderHeadroom * height / (double)Height) : 0;
             Bitmap bitmap = new Bitmap(width, height + headroom, PixelFormat.Format32bppPArgb);
@@ -31,10 +32,11 @@ namespace WinCalendar
             {
                 g.Clear(Color.Transparent);
                 g.TranslateTransform(0, headroom);
-                g.ScaleTransform(width / (float)Width, height / (float)Height);
+                int logicalWidth = showWeather ? CombinedWidth : Width;
+                g.ScaleTransform(width / (float)logicalWidth, height / (float)Height);
                 g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
                 // Alpha 1 keeps the whole button clickable without a visible panel.
-                using (GraphicsPath shape = Rounded(1, 1, Width - 2, Height - 2, 6))
+                using (GraphicsPath shape = Rounded(1, 1, logicalWidth - 2, Height - 2, 6))
                 using (Brush fill = new SolidBrush(SystemInformation.HighContrast ? SystemColors.Window : Color.FromArgb(hover ? 22 : 1, palette.Ink)))
                     g.FillPath(fill, shape);
                 if (reminder && TaskbarAnchor.ReminderMotion)
@@ -56,6 +58,18 @@ namespace WinCalendar
                 using (Brush secondary = new SolidBrush(palette.Secondary))
                 using (Font font = new Font("Segoe UI", 12, FontStyle.Regular, GraphicsUnit.Pixel))
                 using (StringFormat format = Format()) g.DrawString(date.ToString("dddd", DateText.Culture), font, secondary, new RectangleF(46, 22, Width - 54, 16), format);
+                if (showWeather)
+                {
+                    weather = weather ?? new WeatherView();
+                    using (Pen divider = new Pen(Color.FromArgb(45, palette.Ink), 1)) g.DrawLine(divider, 166, 11, 166, 33);
+                    WeatherSymbols.Draw(g, new RectangleF(179, 9, 30, 30), weather.Usable ? weather.Snapshot.Code : 3, !weather.Usable || weather.Snapshot.IsDay, palette);
+                    using (Brush ink = new SolidBrush(weather.Stale ? palette.Secondary : palette.Ink))
+                    using (Font font = DateFont())
+                    using (StringFormat format = Format()) g.DrawString(weather.Location == null ? UiText.Get("Погода") : weather.Temperature, font, ink, new RectangleF(218, 6, 96, 20), format);
+                    using (Brush muted = new SolidBrush(palette.Secondary))
+                    using (Font font = new Font("Segoe UI", 12, FontStyle.Regular, GraphicsUnit.Pixel))
+                    using (StringFormat format = Format()) g.DrawString(weather.Status, font, muted, new RectangleF(218, 22, 96, 16), format);
+                }
             }
             return bitmap;
         }

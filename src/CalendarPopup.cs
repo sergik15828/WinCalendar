@@ -41,6 +41,10 @@ namespace WinCalendar
         internal GoogleClientEditor Editor { get { return editor; } }
         internal bool EditorVisible { get { return editorVisible; } }
         internal bool PreferencesVisible { get { return preferencesVisible; } }
+        internal AppPreferences Preferences { get { return preferences; } }
+        private WeatherDetailsPanel weatherDetails;
+        private bool weatherSelected;
+        internal WeatherDetailsPanel WeatherDetails { get { return weatherDetails; } }
         internal Form ViewWindow { get { return window; } }
 
         internal CalendarPopup(Func<DateTime> now, Action openGoogle, bool connectGoogle = false, GoogleCalendarClient client = null)
@@ -127,6 +131,12 @@ namespace WinCalendar
         internal void Toggle(Point anchor)
         {
             if (reminders != null) reminders.Acknowledge();
+            if (weatherSelected)
+            {
+                ShowCalendar();
+                if (!Visible) ShowAt(anchor, Screen.FromPoint(anchor).WorkingArea);
+                return;
+            }
             if (Visible) { Hide(); return; }
             if ((DateTime.UtcNow - closedAtPin).TotalMilliseconds < 800) { closedAtPin = DateTime.MinValue; return; }
             ShowAt(anchor, Screen.FromPoint(anchor).WorkingArea);
@@ -142,12 +152,13 @@ namespace WinCalendar
             window.Location = anchor;
             int dpi = (int)GetDpiForWindow(window.Handle);
             Panel.SetDpi(dpi); editor.SetDpi(dpi); preferencesPage.SetDpi(dpi);
-            if (!editorVisible && !preferencesVisible) Panel.Reset(clock());
+            if (weatherDetails != null) weatherDetails.SetDpi(dpi);
+            if (!editorVisible && !preferencesVisible && !weatherSelected) Panel.Reset(clock());
             Rectangle bounds = Place(preferencesVisible ? preferencesPage.NaturalSize : Panel.NaturalSize, anchor, work);
             window.Bounds = bounds;
             if (!window.Visible) window.Show();
             window.Reveal();
-            if (editorVisible) editor.Select(); else if (preferencesVisible) preferencesPage.Select(); else Panel.FocusSelectedDay();
+            if (weatherSelected) weatherDetails.Select(); else if (editorVisible) editor.Select(); else if (preferencesVisible) preferencesPage.Select(); else Panel.FocusSelectedDay();
             if (sync != null && login == null && !disconnecting) await RefreshEventsAsync(false);
         }
 
@@ -163,10 +174,30 @@ namespace WinCalendar
         }
 
         internal void UpdateToday(DateTime today) { Panel.UpdateToday(today); }
+        internal void UpdateWeather(WeatherView view) { if (weatherDetails != null) weatherDetails.SetView(view); }
+        internal void ShowWeather(WeatherView view)
+        {
+            if (Visible && weatherSelected) { Hide(); return; }
+            if (weatherDetails == null)
+            {
+                weatherDetails = new WeatherDetailsPanel { Dock = DockStyle.Fill, Visible = false };
+                weatherDetails.VisibleChanged += delegate { SetProp(window.Handle, "WinCalendar.WeatherDetails", new IntPtr(weatherDetails.Visible ? 1 : 0)); };
+                window.Controls.Add(weatherDetails);
+                weatherDetails.BackRequested += ShowCalendar;
+                weatherDetails.CloseRequested += Hide;
+                weatherDetails.SettingsRequested += delegate { OpenPreferences(); preferencesPage.ShowPage(5); };
+            }
+            weatherSelected = true; preferencesVisible = editorVisible = false; preferencesPage.Visible = editor.Visible = Panel.Visible = false;
+            weatherDetails.SetView(view); weatherDetails.Visible = true; weatherDetails.BringToFront();
+            if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
+            ResizeForPage(); window.Reveal();
+        }
         internal void Hide() { visibilityRevision++; closeTimer.Stop(); window.Hide(); }
 
         internal void ShowCalendarSettings()
         {
+            weatherSelected = false;
+            if (weatherDetails != null) weatherDetails.Visible = false;
             preferencesVisible = false; preferencesPage.Visible = false;
             editorVisible = false; editor.Visible = false; Panel.Visible = true;
             if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
@@ -177,12 +208,15 @@ namespace WinCalendar
         }
         internal void ShowCalendar()
         {
+            weatherSelected = false;
+            if (weatherDetails != null) weatherDetails.Visible = false;
             preferencesVisible = false; editorVisible = false; preferencesPage.Visible = editor.Visible = false; Panel.Visible = true;
             Panel.ShowSettings(false); ResizeForPage(); window.Reveal();
         }
         private void ResizeForPage()
         {
             int dpi = (int)GetDpiForWindow(window.Handle); Panel.SetDpi(dpi); editor.SetDpi(dpi); preferencesPage.SetDpi(dpi);
+            if (weatherDetails != null) weatherDetails.SetDpi(dpi);
             Point anchor = new Point(anchorArea.Left + anchorArea.Width / 2, anchorArea.Top + anchorArea.Height / 2);
             window.Bounds = Place(preferencesVisible ? preferencesPage.NaturalSize : Panel.NaturalSize, anchor, Screen.FromPoint(anchor).WorkingArea);
         }
@@ -197,6 +231,8 @@ namespace WinCalendar
         internal PreferencesEditor PreferencesPage { get { return preferencesPage; } }
         internal void OpenPreferences()
         {
+            weatherSelected = false;
+            if (weatherDetails != null) weatherDetails.Visible = false;
             if (google != null && google.LastCalendars.Length > 0)
                 preferences.Calendars = google.LastCalendars.Select(c => new CalendarChoice { Id = c.Id, Name = c.Name, Color = c.Color }).ToList();
             preferencesPage.BeginEdit(preferences); preferencesVisible = true; editorVisible = false; editor.Visible = false;
@@ -222,6 +258,7 @@ namespace WinCalendar
         }
         private void SavePreferences(AppPreferences value)
         {
+            bool weatherModeChanged = preferences.WeatherEnabled != value.WeatherEnabled;
             try
             {
                 if (preferenceStore != null) preferenceStore.Save(value);
@@ -231,9 +268,11 @@ namespace WinCalendar
             catch (Exception) { preferencesPage.ShowError(UiText.Get("Не удалось сохранить настройки.")); return; }
             preferences = value; UiText.Language = value.Language;
             UiText.Apply(Panel); UiText.Apply(editor); UiText.Apply(preferencesPage); Panel.SetPreferences(value);
+            if (weatherDetails != null) UiText.Apply(weatherDetails);
             if (reminders != null) reminders.SetPreferences(value);
             if (PreferencesChanged != null) PreferencesChanged();
             ShowCalendar();
+            if (shell && weatherModeChanged && WeatherDateWindow.IsEnabled) Program.OpenBrowser("ms-settings:taskbar");
         }
 
         internal void ConfigureGoogle() { OpenClientEditor(false); }
@@ -242,6 +281,8 @@ namespace WinCalendar
 
         private void OpenClientEditor(bool connectAfter)
         {
+            weatherSelected = false;
+            if (weatherDetails != null) weatherDetails.Visible = false;
             if (disposed || login != null || disconnecting || configuring) return;
             if (google == null) { ShowCalendarSettings(); return; }
             preferencesVisible = false; preferencesPage.Visible = false;
@@ -344,6 +385,7 @@ namespace WinCalendar
         }
 
         [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool SetProp(IntPtr window, string name, IntPtr value);
         [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
         [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr window);
 
