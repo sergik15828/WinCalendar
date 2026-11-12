@@ -12,19 +12,21 @@ C# 5, the Windows .NET Framework desktop runtime, Windows Forms as the backgroun
 
 ## Users and purpose
 
-The user wants to see today's weekday and day number continuously in the taskbar, like the date on the macOS Dock calendar icon. It should sit first among left-aligned application icons. The user explicitly clarified that a calendar window is not needed.
+The user wants to see today's weekday and day number continuously in the taskbar, like the date on the macOS Dock calendar icon. It should sit first among left-aligned application icons. Clicking the icon now opens a small local month calendar with a button to Google Calendar.
 
 ## Capabilities and constraints
 
 - Current local day number and a two-letter Russian weekday directly on the application icon.
-- No calendar window on launch, click, restore, or repeated launch.
+- Clicking or explicitly launching the application toggles a compact month calendar near the pointer. Background startup stays invisible.
 - Once pinned, hide the running-app button; retain only the pinned date icon and background updater.
 - Fill the existing icon slot with larger weekday and day glyphs; do not change global Windows scale settings.
 - Keep a minimized native host alive for the taskbar button and automatic date updates.
 - The user pins and reorders the application using Windows itself.
-- Clicking the date opens Google Calendar in the default browser.
+- Calendar supports month navigation, Monday-first weeks, today and selected-day highlights, and a Today button. Selection does not change the taskbar date.
+- A button in the panel opens Google Calendar in the default browser. Google events and account integration remain planned.
+- Escape, outside click, or another icon click closes the panel. Its native tool-window style must not add a running-app indicator.
 - Startup and Exit remain available through Settings.cmd and the Start menu settings shortcut.
-- Background startup must never open the browser.
+- Background startup must never open the calendar panel or browser.
 - Offline, no accounts or calendar service integration.
 - Full exit stops date updates; startup is an explicit user choice.
 

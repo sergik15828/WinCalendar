@@ -54,7 +54,7 @@ namespace WinCalendar
                         DateTaskbarWindow window = new DateTaskbarWindow(true, delegate { return DateTime.Now; });
                         window.Shown += delegate
                         {
-                            if (command == OpenCalendarCommand) window.BeginInvoke(new Action(OpenGoogleCalendar));
+                            if (command == OpenCalendarCommand) window.BeginInvoke(new Action(window.ToggleCalendar));
                             else if (command == MenuCommand) PostCommand(MenuCommand, Process.GetCurrentProcess().Id);
                         };
                         Application.Run(window);

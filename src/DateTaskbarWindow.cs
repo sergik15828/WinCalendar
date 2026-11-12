@@ -21,7 +21,9 @@ namespace WinCalendar
         private Icon ownedIcon;
         private Icon smallIcon;
         private bool retryIcon;
+        private CalendarPopup calendar;
         internal DateTime CurrentDate { get; private set; }
+        internal CalendarPopup Calendar { get { return calendar; } }
 
         protected override bool ShowWithoutActivation { get { return true; } }
 
@@ -57,6 +59,7 @@ namespace WinCalendar
                 if (WindowState != FormWindowState.Minimized) WindowState = FormWindowState.Minimized;
             };
             RefreshDate(true);
+            calendar = new CalendarPopup(now, Program.OpenGoogleCalendar);
             if (integrateWithShell)
             {
                 SystemEvents.TimeChanged += OnTimeChanged;
@@ -84,6 +87,7 @@ namespace WinCalendar
             if (previous != null) previous.Dispose();
             if (previousSmall != null) previousSmall.Dispose();
             CurrentDate = date;
+            if (calendar != null) calendar.UpdateToday(date);
             Text = date.ToString("dddd, d MMMM yyyy", DateText.Russian) + " — WinCalendar";
             if (integrateWithShell)
             {
@@ -143,7 +147,7 @@ namespace WinCalendar
                 {
                     if (integrateWithShell && command == 0xf120)
                     {
-                        Program.OpenGoogleCalendar();
+                        ToggleCalendar();
                     }
                     return;
                 }
@@ -157,7 +161,7 @@ namespace WinCalendar
                     if (integrateWithShell) ShellIntegration.StartsWithWindows = command == Program.StartupOnCommand;
                 }
                 else if (command == Program.MenuCommand && integrateWithShell) ShowMenu();
-                else if (command == Program.OpenCalendarCommand && integrateWithShell) Program.OpenGoogleCalendar();
+                else if (command == Program.OpenCalendarCommand && integrateWithShell) ToggleCalendar();
                 else RefreshDate(false);
                 return;
             }
@@ -167,8 +171,15 @@ namespace WinCalendar
 
         private void ShowMenu()
         {
+            calendar.Hide();
             startup.Checked = ShellIntegration.StartsWithWindows;
             menu.Show(Cursor.Position);
+        }
+
+        internal void ToggleCalendar()
+        {
+            RefreshDate(false);
+            calendar.Toggle(Cursor.Position);
         }
 
         protected override void OnFormClosed(FormClosedEventArgs args)
@@ -176,6 +187,7 @@ namespace WinCalendar
             timer.Stop();
             timer.Dispose();
             menu.Dispose();
+            calendar.Dispose();
             if (ownedIcon != null) ownedIcon.Dispose();
             if (smallIcon != null) smallIcon.Dispose();
             if (integrateWithShell)

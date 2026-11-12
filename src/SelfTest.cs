@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
@@ -22,18 +23,38 @@ namespace WinCalendar
 
         internal static int Run(string directory)
         {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            int result = 1;
+            using (ApplicationContext context = new ApplicationContext())
+            {
+                EventHandler run = null;
+                run = delegate
+                {
+                    Application.Idle -= run;
+                    result = RunChecks(directory);
+                    context.ExitThread();
+                };
+                Application.Idle += run;
+                Application.Run(context);
+            }
+            return result;
+        }
+
+        private static int RunChecks(string directory)
+        {
             directory = Path.GetFullPath(directory);
             Directory.CreateDirectory(directory);
             int code = 0;
             try
             {
-                Check(Program.GetLaunchCommand(null) == Program.OpenCalendarCommand, "Icon click opens Google Calendar");
+                Check(Program.GetLaunchCommand(null) == Program.OpenCalendarCommand, "Icon click requests the calendar popup");
                 Check(Program.GetLaunchCommand("--background") == Program.RefreshCommand, "Background startup does not open the browser");
                 Check(Program.GetLaunchCommand("--menu") == Program.MenuCommand, "Settings menu stays available separately");
                 TestIcons(directory);
                 TestDateOnlyHost(directory);
-                foreach (string file in Directory.GetFiles(directory, "calendar-*.png")) File.Delete(file);
-                Results.Add("PASS all date-only checks; no calendar window is used.");
+                TestCalendar(directory);
+                Results.Add("PASS all checks; popup uses a tool window, background startup stays hidden.");
             }
             catch (Exception error)
             {
@@ -120,6 +141,7 @@ namespace WinCalendar
                 Check(IsIconic(handle), "Native taskbar host starts minimized");
                 Check(!window.ShowInTaskbar && GetWindow(handle, 4) != IntPtr.Zero, "Background host has a hidden owner and no running-app taskbar button");
                 Check(window.Controls.Count == 0, "No calendar content exists");
+                Check(!window.Calendar.Visible, "Background startup does not show the calendar popup");
                 Check(window.Text.Contains("12 ноября 2026"), "Taskbar title contains full date");
 
                 SendMessage(handle, 0x0112, new IntPtr(0xf120), IntPtr.Zero);
@@ -154,6 +176,91 @@ namespace WinCalendar
             }
         }
 
+        private static void TestCalendar(string directory)
+        {
+            foreach (DateTime month in new[] { new DateTime(2024, 2, 1), new DateTime(2026, 2, 1), new DateTime(2026, 11, 1), new DateTime(2026, 12, 1) })
+            {
+                CalendarState state = new CalendarState(month);
+                DateTime[] days = state.Days();
+                Check(days.Length == 42 && days[0].DayOfWeek == DayOfWeek.Monday && days[41].DayOfWeek == DayOfWeek.Sunday,
+                    "Monday-first six-week calendar: " + month.ToString("yyyy-MM"));
+                Check(days.Count(d => d.Year == month.Year && d.Month == month.Month) == DateTime.DaysInMonth(month.Year, month.Month),
+                    "All month days present once: " + month.ToString("yyyy-MM"));
+            }
+            CalendarState leap = new CalendarState(new DateTime(2024, 1, 31)); leap.MoveMonth(1);
+            Check(leap.Selected == new DateTime(2024, 2, 29), "Month navigation clamps to leap day");
+            leap.MoveMonth(10);
+            Check(leap.Month == new DateTime(2024, 12, 1), "Month navigation crosses calendar grid boundaries");
+            leap.GoToToday(); leap.UpdateToday(new DateTime(2024, 2, 1));
+            Check(leap.Selected == new DateTime(2024, 2, 1), "Open calendar follows today at midnight");
+            leap.Select(new DateTime(2025, 5, 17)); leap.UpdateToday(new DateTime(2024, 2, 2));
+            Check(leap.Selected == new DateTime(2025, 5, 17), "Day rollover preserves a browsed date");
+
+            Rectangle[] workAreas = { new Rectangle(0, 0, 1920, 1020), new Rectangle(-1920, 0, 1920, 1040),
+                new Rectangle(40, 0, 1880, 1080), new Rectangle(0, 48, 1920, 1032), new Rectangle(0, 0, 320, 400) };
+            foreach (Rectangle work in workAreas)
+                foreach (Point anchor in new[] { new Point(work.Left, work.Bottom + 20), new Point(work.Right, work.Top - 10), new Point(work.Left - 20, work.Top + work.Height / 2) })
+                    Check(work.Contains(CalendarPopup.Place(new Size(344, 468), anchor, work)), "Popup stays within monitor working area: " + work);
+
+            DateTime fixture = new DateTime(2026, 11, 12);
+            int googleOpens = 0;
+            using (CalendarPopup popup = new CalendarPopup(delegate { return fixture; }, delegate { googleOpens++; }))
+            {
+                Rectangle work = Screen.PrimaryScreen.WorkingArea;
+                Point anchor = new Point(work.Right - 100, work.Bottom + 8);
+                popup.ShowAt(anchor, work); Pump();
+                Check(popup.Visible, "Calendar opens in native dropdown");
+                long style = GetWindowLongPtr(popup.Handle, -20).ToInt64();
+                Check((style & 0x80) != 0 && (style & 0x40000) == 0, "Calendar popup is a tool window without an app taskbar button");
+                Check(popup.Panel.Controls.OfType<CalendarDayButton>().Count() == 42, "Calendar renders 42 date buttons");
+                Check(popup.Panel.Controls.OfType<CalendarDayButton>().All(b => !String.IsNullOrEmpty(b.AccessibleName)), "Date buttons have full accessible labels");
+                popup.Panel.NextButton.PerformClick();
+                Check(popup.Panel.State.Month == new DateTime(2026, 12, 1), "Next month button changes visible month");
+                popup.Panel.PreviousButton.PerformClick();
+                Check(popup.Panel.State.Month == new DateTime(2026, 11, 1), "Previous month button changes visible month");
+                popup.Panel.Controls.OfType<CalendarDayButton>().Single(b => (DateTime)b.Tag == new DateTime(2026, 11, 19)).PerformClick();
+                Check(popup.Panel.State.Selected == new DateTime(2026, 11, 19) && popup.Panel.State.Today == fixture, "Selecting a date keeps today's date unchanged");
+                popup.Panel.TodayButton.PerformClick();
+                Check(popup.Panel.State.Selected == fixture, "Today button returns to current date");
+                popup.Panel.FocusSelectedDay();
+                CalendarKey(popup.Panel, Keys.Right);
+                Check(popup.Panel.State.Selected == fixture.AddDays(1), "Keyboard arrows select another day");
+                CalendarKey(popup.Panel, Keys.PageDown);
+                Check(popup.Panel.State.Month == new DateTime(2026, 12, 1), "Page Down changes calendar month");
+                CalendarKey(popup.Panel, Keys.Home);
+                Check(popup.Panel.State.Selected == fixture, "Home returns to today");
+                foreach (int dpi in new[] { 96, 120, 144 })
+                foreach (bool dark in new[] { false, true })
+                {
+                    popup.Panel.SetDpi(dpi);
+                    popup.Panel.ApplyTheme(dark); popup.Panel.Refresh(); Pump();
+                    using (Bitmap image = new Bitmap(popup.Panel.Width, popup.Panel.Height))
+                    {
+                        popup.Panel.DrawToBitmap(image, popup.Panel.ClientRectangle);
+                        image.Save(Path.Combine(directory, "calendar-" + (dark ? "dark" : "light") + (dpi == 96 ? "" : "-" + dpi) + ".png"), ImageFormat.Png);
+                    }
+                    Check(popup.Panel.Controls.Cast<Control>().All(c => popup.Panel.ClientRectangle.Contains(c.Bounds)), "Calendar controls fit in " + (dark ? "dark" : "light") + " theme at " + dpi + " DPI");
+                    Check(popup.Panel.Size == new Size(344 * dpi / 96, 468 * dpi / 96), "Calendar geometry follows " + dpi + " DPI");
+                }
+                popup.Panel.GoogleButton.PerformClick(); Pump();
+                Check(googleOpens == 1 && !popup.Visible, "Google Calendar button opens browser action and closes popup");
+                popup.Toggle(anchor); Pump();
+                Check(popup.Visible, "Calendar can reopen after dismissal");
+                popup.Toggle(anchor); Pump();
+                Check(!popup.Visible, "Second icon command closes calendar");
+                popup.ShowAt(anchor, work); Pump();
+                CalendarKey(popup.Panel, Keys.Escape); Pump();
+                Check(!popup.Visible, "Escape closes calendar");
+            }
+        }
+
+        private static void CalendarKey(CalendarPanel panel, Keys key)
+        {
+            MethodInfo method = typeof(CalendarPanel).GetMethod("ProcessCmdKey", BindingFlags.Instance | BindingFlags.NonPublic);
+            object[] arguments = { Message.Create(panel.Handle, 0x100, new IntPtr((int)key), IntPtr.Zero), key };
+            Check((bool)method.Invoke(panel, arguments), "Calendar handles " + key);
+        }
+
         private static void Pump()
         {
             Application.DoEvents();
@@ -182,5 +289,7 @@ namespace WinCalendar
         private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
         [DllImport("user32.dll")]
         private static extern IntPtr GetWindow(IntPtr window, uint command);
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+        private static extern IntPtr GetWindowLongPtr(IntPtr window, int index);
     }
 }
