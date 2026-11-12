@@ -1,0 +1,40 @@
+WinCalendar 0.8.1 — начало работы
+
+1. После установки запустите WinCalendar из меню Пуск.
+2. Закрепите значок даты в панели задач через правую кнопку мыши.
+   После закрепления приложение уберёт индикатор запущенного окна.
+3. По клику на дату открывается календарь. Шестерёнка открывает параметры.
+4. Для широкого виджета включите «Виджет в панели задач» в «Основное».
+   Выключите системные «Мини-приложения» в параметрах панели задач Windows.
+   В разделе «Погода» найдите город, выберите результат и нажмите «Сохранить».
+5. При отключении нашей погоды можно вернуть системную погоду Windows:
+   включите «Мини-приложения» в открывшихся параметрах Windows.
+   Компактный календарь разместится справа от неё.
+6. Google Calendar подключается отдельно на каждом компьютере.
+   В параметрах: Календари → Настроить подключение.
+   Подробная инструкция: GOOGLE_SETUP.md рядом с приложением или
+   https://github.com/sergik15828/WinCalendar/blob/main/GOOGLE_SETUP.md
+
+Данные погоды: Open-Meteo. Кнопка «Яндекс Погода» открывает выбранный город
+в браузере. Ключ API для погоды не требуется.
+
+Установка — только для текущего пользователя Windows, без прав администратора.
+Автозапуск выбирается при установке и меняется в параметрах приложения.
+Удаление: Параметры Windows → Приложения → Установленные приложения → WinCalendar.
+Настройки, локальный кэш и подключение Google при удалении сохраняются.
+Учётные данные, токены и данные этого компьютера в установщик не включены.
+
+Требования: Windows 11 x64 и .NET Framework 4.8 или новее.
+
+English
+
+Launch WinCalendar from Start, then pin its date icon to the taskbar.
+Click the date to open the calendar; the gear opens preferences.
+Select English under General → Interface language and save.
+Enable the taskbar widget to use the wide calendar/weather mode.
+Turn off Windows Widgets in taskbar settings, then choose a city under Weather.
+Google Calendar requires its own sign-in and OAuth client configuration on
+each computer; see GOOGLE_SETUP.md. The installer contains no account data.
+Uninstalling preserves local preferences and account configuration.
+
+Project and updates: https://github.com/sergik15828/WinCalendar
