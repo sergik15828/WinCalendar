@@ -93,7 +93,7 @@ namespace WinCalendar
             { "Весь день", "All day" }, { "Ранее", "Earlier" }, { "далее", "continues" }, { "Без названия", "Untitled" },
             { "Занято", "Busy" }, { "Пересечение", "Overlap" }, { "Войти в Meet", "Join Meet" },
             { ", Завершено", ", Ended" }, { ", Пересечение", ", Overlap" }, { ", Войти в Meet: Alt+Enter", ", Join Meet: Alt+Enter" },
-            { "Ближайших встреч нет", "No upcoming meetings" }, { "Сейчас", "Now" }, { "Через ", "In " }, { " мин", " min" },
+            { "Ближайших встреч нет", "No upcoming meetings" }, { "Сейчас", "Now" }, { "Через ", "In " }, { " мин", " min" }, { " ч", " h" },
             { "Подключение", "Connection" }, { "Данные OAuth-клиента Google", "Google OAuth client details" },
             { "Как настроить Google Cloud", "Google Cloud setup guide" },
             { "Данные сохраняются в хранилище Windows.\nПустое поле секрета сохраняет прежний\nсекрет для того же Client ID.", "Stored in Windows Credential Manager.\nLeave the secret blank to keep the saved\nsecret for the same Client ID." },

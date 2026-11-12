@@ -45,6 +45,27 @@ namespace WinCalendar
             DateTimeOffset now = a.ReminderStart.AddMinutes(15);
             check(MeetingTools.Next(new[] { adjacent, a }, now) == a
                 && !MeetingTools.NextLabel(a, now, true).Contains(a.Title), "Next meeting includes an ongoing event and respects privacy");
+            string previousLanguage = UiText.Language;
+            try
+            {
+                CalendarEvent later = Event("countdown", date.AddHours(18).AddMinutes(37), date.AddHours(19).AddMinutes(37));
+                UiText.Language = "ru";
+                check(MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-637), false).StartsWith("Через 10 ч 37 мин · ", StringComparison.Ordinal),
+                    "A 637-minute meeting countdown is shown as ten hours and thirty-seven minutes");
+                check(MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-59), false).StartsWith("Через 59 мин · ", StringComparison.Ordinal)
+                    && MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-60), false).StartsWith("Через 1 ч · ", StringComparison.Ordinal)
+                    && MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-120), false).StartsWith("Через 2 ч · ", StringComparison.Ordinal),
+                    "Countdown switches at one hour and omits zero remaining minutes");
+                UiText.Language = "en";
+                string english = MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-637), true);
+                check(english.StartsWith("In 10 h 37 min · ", StringComparison.Ordinal) && !english.Contains(later.Title),
+                    "Hour countdowns use English units and retain private meeting titles");
+                UiText.Language = "ru";
+                check(MeetingTools.NextLabel(later, later.ReminderStart, false).StartsWith("Сейчас · ", StringComparison.Ordinal)
+                    && !MeetingTools.NextLabel(later, later.ReminderStart.AddDays(-1), false).StartsWith("Через ", StringComparison.Ordinal),
+                    "Ongoing meetings and meetings on a later date keep their existing labels");
+            }
+            finally { UiText.Language = previousLanguage; }
 
             string path = Path.Combine(directory, "features-" + Guid.NewGuid().ToString("N"));
             try

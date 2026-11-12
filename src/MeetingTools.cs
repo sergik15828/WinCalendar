@@ -18,8 +18,15 @@ namespace WinCalendar
         {
             if (item == null) return UiText.Get("Ближайших встреч нет");
             DateTime start = item.ReminderStart.ToLocalTime().DateTime;
-            string when = item.ReminderStart <= now ? UiText.Get("Сейчас") : start.Date == now.LocalDateTime.Date ? UiText.Get("Через ") + Math.Max(1, (int)Math.Ceiling((item.ReminderStart - now).TotalMinutes)) + UiText.Get(" мин") : start.ToString("d MMM, HH:mm", DateText.Culture);
+            string when = item.ReminderStart <= now ? UiText.Get("Сейчас") : start.Date == now.LocalDateTime.Date ? UiText.Get("Через ") + Countdown(item.ReminderStart - now) : start.ToString("d MMM, HH:mm", DateText.Culture);
             return when + " · " + (privacy ? UiText.Get("Занято") : item.Title);
+        }
+        private static string Countdown(TimeSpan remaining)
+        {
+            int minutes = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+            if (minutes < 60) return minutes + UiText.Get(" мин");
+            int rest = minutes % 60;
+            return minutes / 60 + UiText.Get(" ч") + (rest == 0 ? "" : " " + rest + UiText.Get(" мин"));
         }
     }
 }
