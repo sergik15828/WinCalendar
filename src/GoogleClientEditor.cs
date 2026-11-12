@@ -23,25 +23,25 @@ namespace WinCalendar
         internal GoogleClientEditor()
         {
             AutoScaleMode = AutoScaleMode.None; AutoScroll = true; Size = new Size(688, 380);
-            AddLabel("Подключение", new Rectangle(16, 12, 312, 32), true);
-            AddLabel("Данные OAuth-клиента Google", new Rectangle(16, 46, 312, 24), false);
+            AddLabel(UiText.Get("Подключение"), new Rectangle(16, 12, 312, 32), true);
+            AddLabel(UiText.Get("Данные OAuth-клиента Google"), new Rectangle(16, 46, 312, 24), false);
             AddLabel("Client ID", new Rectangle(16, 98, 312, 24), false);
             id = new TextBox { Bounds = new Rectangle(16, 126, 312, 28), MaxLength = 512, AccessibleName = "OAuth Desktop Client ID" };
             Controls.Add(id);
             AddLabel("Client secret", new Rectangle(360, 98, 312, 24), false);
             secret = new TextBox { Bounds = new Rectangle(360, 126, 312, 28), MaxLength = 1024, UseSystemPasswordChar = true, AccessibleName = "OAuth Client secret" };
             Controls.Add(secret);
-            guide = new LinkLabel { Bounds = new Rectangle(16, 190, 312, 28), Text = "Как настроить Google Cloud" };
+            guide = new LinkLabel { Bounds = new Rectangle(16, 190, 312, 28), Text = UiText.Get("Как настроить Google Cloud") };
             guide.LinkClicked += delegate { Program.OpenBrowser("https://github.com/sergik15828/WinCalendar/blob/main/GOOGLE_SETUP.md"); };
             Controls.Add(guide);
-            AddLabel("Данные сохраняются в хранилище Windows.\nПустое поле секрета сохраняет прежний\nсекрет для того же Client ID.", new Rectangle(360, 184, 312, 74), false);
+            AddLabel(UiText.Get("Данные сохраняются в хранилище Windows.\nПустое поле секрета сохраняет прежний\nсекрет для того же Client ID."), new Rectangle(360, 184, 312, 74), false);
             error = AddLabel("", new Rectangle(16, 234, 312, 60), false);
-            cancel = ActionButton("Назад", new Rectangle(16, 330, 96, 34));
-            save = ActionButton("Сохранить", new Rectangle(464, 330, 208, 34));
+            cancel = ActionButton(UiText.Get("Назад"), new Rectangle(16, 330, 96, 34));
+            save = ActionButton(UiText.Get("Сохранить"), new Rectangle(464, 330, 208, 34));
             cancel.Click += delegate { Clear(); if (CancelRequested != null) CancelRequested(this, EventArgs.Empty); };
             save.Click += delegate
             {
-                if (!ClientId.EndsWith(".apps.googleusercontent.com", StringComparison.Ordinal)) { ShowError("Нужен Client ID клиента типа Desktop app."); return; }
+                if (!ClientId.EndsWith(".apps.googleusercontent.com", StringComparison.Ordinal)) { ShowError(UiText.Get("Нужен Client ID клиента типа Desktop app.")); return; }
                 if (SaveRequested != null) SaveRequested(this, EventArgs.Empty);
             };
             foreach (Control control in Controls) logicalBounds.Add(control, control.Bounds);

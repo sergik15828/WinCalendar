@@ -21,6 +21,7 @@ namespace WinCalendar
         internal const int GoogleConnectCommand = 7;
         internal const int PreviewReminderCommand = 8;
         internal const int PreferencesCommand = 9;
+        internal const int WeatherOnCommand = 10, WeatherOffCommand = 11;
         internal const string GoogleCalendarUrl = "https://calendar.google.com/calendar/";
 
         [STAThread]
@@ -34,10 +35,12 @@ namespace WinCalendar
                     return 0;
                 }
                 if (args.Length == 2 && args[0] == "--self-test") return SelfTest.Run(args[1]);
+                if (args.Length == 2 && args[0] == "--weather-probe") return WeatherInstalledProbe.Run(args[1]);
+                if (args.Length == 2 && args[0] == "--weather-api-probe") return WeatherApiProbe.RunAsync(args[1]).GetAwaiter().GetResult();
                 int command = GetLaunchCommand(args.Length == 0 ? null : args[0]);
                 if (args.Length > 1 || command < 0)
                 {
-                    MessageBox.Show("Неизвестный параметр запуска. Откройте WinDate.exe без параметров.", "WinCalendar");
+                    MessageBox.Show(UiText.Get("Неизвестный параметр запуска. Откройте WinDate.exe без параметров."), "WinCalendar");
                     return 2;
                 }
                 bool firstInstance;
@@ -51,8 +54,11 @@ namespace WinCalendar
                     try
                     {
                         if (command == ExitCommand) return 0;
+                        if (command == WeatherOnCommand || command == WeatherOffCommand)
+                            WeatherDateWindow.IsEnabled = command == WeatherOnCommand;
                         if (command == StartupOnCommand || command == StartupOffCommand)
                             ShellIntegration.StartsWithWindows = command == StartupOnCommand;
+                        UiText.Language = new PreferenceStore(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "Preferences.bin")).Load().Language;
                         ShellIntegration.EnsureAppShortcut();
                         Application.EnableVisualStyles();
                         Application.SetCompatibleTextRenderingDefault(false);
@@ -75,7 +81,7 @@ namespace WinCalendar
             }
             catch (Exception error)
             {
-                MessageBox.Show("Не удалось запустить индикатор даты.\n\n" + error.Message, "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(UiText.Get("Не удалось запустить индикатор даты.\n\n") + error.Message, "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
         }
@@ -92,6 +98,8 @@ namespace WinCalendar
             if (argument == "--google-connect") return GoogleConnectCommand;
             if (argument == "--preview-reminder") return PreviewReminderCommand;
             if (argument == "--preferences") return PreferencesCommand;
+            if (argument == "--weather-on") return WeatherOnCommand;
+            if (argument == "--weather-off") return WeatherOffCommand;
             return -1;
         }
 
@@ -116,7 +124,7 @@ namespace WinCalendar
 
         private static void BrowserUnavailable()
         {
-            MessageBox.Show("Не удалось открыть браузер. Выберите приложение по умолчанию для HTTPS в параметрах Windows и повторите попытку.", "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(UiText.Get("Не удалось открыть браузер. Выберите приложение по умолчанию для HTTPS в параметрах Windows и повторите попытку."), "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         internal static bool PostCommand(int command, int targetProcess)

@@ -45,6 +45,27 @@ namespace WinCalendar
             DateTimeOffset now = a.ReminderStart.AddMinutes(15);
             check(MeetingTools.Next(new[] { adjacent, a }, now) == a
                 && !MeetingTools.NextLabel(a, now, true).Contains(a.Title), "Next meeting includes an ongoing event and respects privacy");
+            string previousLanguage = UiText.Language;
+            try
+            {
+                CalendarEvent later = Event("countdown", date.AddHours(18).AddMinutes(37), date.AddHours(19).AddMinutes(37));
+                UiText.Language = "ru";
+                check(MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-637), false).StartsWith("Через 10 ч 37 мин · ", StringComparison.Ordinal),
+                    "A 637-minute meeting countdown is shown as ten hours and thirty-seven minutes");
+                check(MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-59), false).StartsWith("Через 59 мин · ", StringComparison.Ordinal)
+                    && MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-60), false).StartsWith("Через 1 ч · ", StringComparison.Ordinal)
+                    && MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-120), false).StartsWith("Через 2 ч · ", StringComparison.Ordinal),
+                    "Countdown switches at one hour and omits zero remaining minutes");
+                UiText.Language = "en";
+                string english = MeetingTools.NextLabel(later, later.ReminderStart.AddMinutes(-637), true);
+                check(english.StartsWith("In 10 h 37 min · ", StringComparison.Ordinal) && !english.Contains(later.Title),
+                    "Hour countdowns use English units and retain private meeting titles");
+                UiText.Language = "ru";
+                check(MeetingTools.NextLabel(later, later.ReminderStart, false).StartsWith("Сейчас · ", StringComparison.Ordinal)
+                    && !MeetingTools.NextLabel(later, later.ReminderStart.AddDays(-1), false).StartsWith("Через ", StringComparison.Ordinal),
+                    "Ongoing meetings and meetings on a later date keep their existing labels");
+            }
+            finally { UiText.Language = previousLanguage; }
 
             string path = Path.Combine(directory, "features-" + Guid.NewGuid().ToString("N"));
             try
@@ -167,11 +188,12 @@ namespace WinCalendar
                     popup.Panel.SetDpi(dpi); popup.ViewWindow.ClientSize = popup.Panel.NaturalSize; popup.Panel.ApplyTheme(dark); Application.DoEvents();
                     Save(popup.Panel, directory, "features-agenda-" + (dark ? "dark" : "light") + "-" + dpi + ".png");
                     popup.OpenPreferences(); popup.PreferencesPage.BeginEdit(options); popup.PreferencesPage.SetDpi(dpi, dark);
+                    popup.ViewWindow.ClientSize = popup.PreferencesPage.NaturalSize;
                     for (int page = 0; page < 3; page++)
                     {
                         popup.PreferencesPage.ShowPage(page); popup.PreferencesPage.SetDpi(dpi, dark);
-                        check(CalendarPanel.Descendants(popup.PreferencesPage).All(c => c.Parent.ClientRectangle.Contains(c.Bounds)),
-                            "Preferences page " + page + " controls fit at " + dpi + " DPI, dark=" + dark);
+                        check(popup.PreferencesPage.LayoutFits,
+                            "Preferences page " + page + " controls fit at " + dpi + " DPI, dark=" + dark + " " + popup.PreferencesPage.LayoutIssues);
                         Save(popup.PreferencesPage, directory, "features-settings-" + page + "-" + (dark ? "dark" : "light") + "-" + dpi + ".png");
                     }
                     popup.ShowCalendarSettings(); popup.Panel.ShowSettings(false);
@@ -187,11 +209,15 @@ namespace WinCalendar
                 popup.PreferencesPage.Controls.OfType<Button>().Single(button => button.Text == "Сохранить").PerformClick();
                 check(popup.PreferencesPage.Draft.PrivateMode && popup.PreferencesPage.Draft.SoundStyle == 2 && popup.PreferencesPage.Draft.Volume == 45
                     && !popup.Panel.EventList.Items[0].ToString().Contains(events[0].Title), "Preferences Save applies edited controls and masks existing meeting metadata immediately");
-                check(popup.Visible && popup.Panel.SettingsVisible, "Saving preferences returns to settings in the existing flyout");
+                check(popup.Visible && !popup.Panel.SettingsVisible && !popup.PreferencesVisible, "Saving preferences returns to the calendar in the existing flyout");
             }
         }
         private static void Save(Control control, string directory, string name)
-        { using (Bitmap image = new Bitmap(control.Width, control.Height)) { control.DrawToBitmap(image, control.ClientRectangle); image.Save(Path.Combine(directory, name), ImageFormat.Png); } }
+        {
+            PreferencesEditor preferences = control as PreferencesEditor;
+            using (Bitmap image = preferences == null ? new Bitmap(control.Width, control.Height) : preferences.CaptureFrame())
+            { if (preferences == null) control.DrawToBitmap(image, control.ClientRectangle); image.Save(Path.Combine(directory, name), ImageFormat.Png); }
+        }
         private sealed class RangeSource : ICalendarSource
         {
             internal int Calls;

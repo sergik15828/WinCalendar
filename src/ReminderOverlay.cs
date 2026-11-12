@@ -54,11 +54,13 @@ namespace WinCalendar
         {
             if (active == enabled) return;
             active = enabled;
+            TaskbarAnchor.ReminderActive = enabled;
             if (!enabled) { animation.Stop(); Hide(); return; }
             try { if (Preferences.SoundEnabled && Preferences.Volume > 0 && !Preferences.IsQuiet(DateTime.Now)) playSound(); }
             catch (InvalidOperationException) { }
             int enabledMotion;
             motion = SystemParametersInfo(0x1042, 0, out enabledMotion, 0) && enabledMotion != 0 && !SystemInformation.HighContrast;
+            TaskbarAnchor.ReminderMotion = motion; TaskbarAnchor.ReminderStrength = Preferences.PulseStrength;
             animation.Interval = motion ? 33 : 1000;
             clock.Restart(); animation.Start(); Render();
         }
@@ -84,6 +86,7 @@ namespace WinCalendar
         private void Render()
         {
             if (!active || IsDisposed) return;
+            if (!TaskbarAnchor.Prototype.IsEmpty) { Hide(); return; }
             if (!refreshing && DateTime.UtcNow - anchorChecked > TimeSpan.FromSeconds(2))
             { anchorChecked = DateTime.UtcNow; RefreshAnchor(); }
             Rectangle pin = TaskbarAnchor.Current;
@@ -94,7 +97,7 @@ namespace WinCalendar
             Point at = new Point(pin.Left + pin.Width / 2 - size / 2, pin.Top + pin.Height / 2 - size / 2);
             using (Bitmap bitmap = DrawFrame(size, motion ? clock.Elapsed.TotalMilliseconds % 1800 / 1800 : 0.35, Preferences.PulseStrength))
             {
-                if (!Present(bitmap, at)) { Hide(); return; }
+                if (!Present(Handle, bitmap, at)) { Hide(); return; }
             }
             if (!Visible) Show();
             // Explorer raises the taskbar again during hover and activation.
@@ -115,13 +118,6 @@ namespace WinCalendar
                 float spread = (float)(3 * breathe * power);
                 using (GraphicsPath outline = Rounded(8 - spread, 8 - spread, 32 + 2 * spread, 32 + 2 * spread, 6 + spread))
                 using (Pen pen = new Pen(Color.FromArgb(Math.Min(255, (int)((65 + 175 * breathe) * power)), accent), (float)(1.25 + 1.25 * breathe * power))) graphics.DrawPath(pen, outline);
-                float radius = (float)(3 + 1.5 * breathe), ripple = (float)(5 + 6 * phase);
-                using (Pen ring = new Pen(Color.FromArgb((int)(150 * (1 - phase)), accent), 1.4f))
-                    graphics.DrawEllipse(ring, 36 - ripple, 12 - ripple, 2 * ripple, 2 * ripple);
-                using (Brush fill = new SolidBrush(Color.FromArgb((int)(180 + 75 * breathe), accent)))
-                    graphics.FillEllipse(fill, 36 - radius, 12 - radius, 2 * radius, 2 * radius);
-                using (Pen border = new Pen(Color.FromArgb(235, Color.White), 0.9f))
-                    graphics.DrawEllipse(border, 36 - radius, 12 - radius, 2 * radius, 2 * radius);
             }
             return bitmap;
         }
@@ -133,7 +129,7 @@ namespace WinCalendar
             path.AddArc(x + width - d, y + height - d, d, d, 0, 90); path.AddArc(x, y + height - d, d, d, 90, 90); path.CloseFigure(); return path;
         }
 
-        private bool Present(Bitmap bitmap, Point at)
+        internal static bool Present(IntPtr window, Bitmap bitmap, Point at)
         {
             IntPtr screen = GetDC(IntPtr.Zero), memory = CreateCompatibleDC(screen), image = IntPtr.Zero, previous = IntPtr.Zero;
             try
@@ -142,7 +138,7 @@ namespace WinCalendar
                 NativePoint position = new NativePoint { X = at.X, Y = at.Y }, source = new NativePoint();
                 NativeSize size = new NativeSize { Width = bitmap.Width, Height = bitmap.Height };
                 Blend blend = new Blend { Operation = 0, Alpha = 255, Format = 1 };
-                return UpdateLayeredWindow(Handle, screen, ref position, ref size, memory, ref source, 0, ref blend, 2);
+                return UpdateLayeredWindow(window, screen, ref position, ref size, memory, ref source, 0, ref blend, 2);
             }
             finally
             {
@@ -161,7 +157,7 @@ namespace WinCalendar
         }
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { animation.Dispose(); if (chime != null) chime.Dispose(); }
+            if (disposing) { TaskbarAnchor.ReminderActive = false; animation.Dispose(); if (chime != null) chime.Dispose(); }
             base.Dispose(disposing);
         }
 

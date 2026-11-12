@@ -13,12 +13,22 @@ namespace WinCalendar
         public string Id { get; set; }
         public string Name { get; set; }
         public string Color { get; set; }
-        public override string ToString() { return Name ?? "Календарь"; }
+        public override string ToString() { return Name ?? UiText.Get("Календарь"); }
     }
 
     internal sealed class AppPreferences
     {
         public bool PrivateMode { get; set; }
+        public string Language { get; set; }
+        public int ReminderTiming { get; set; }
+        public bool WeatherEnabled { get; set; }
+        public WeatherLocation WeatherCity { get; set; }
+        public bool PaydayEnabled { get; set; }
+        public int PaydayFrequency { get; set; }
+        public int PaydayFirst { get; set; }
+        public int PaydaySecond { get; set; }
+        internal bool? WeatherWidgetChange;
+        internal bool? StartupChange;
         public bool SoundEnabled { get; set; }
         public int SoundStyle { get; set; }
         public int Volume { get; set; }
@@ -33,11 +43,19 @@ namespace WinCalendar
         public AppPreferences()
         {
             SoundEnabled = true; Volume = 100; QuietStart = 22 * 60; QuietEnd = 8 * 60;
+            Language = "ru";
+            WeatherEnabled = true;
+            PaydayEnabled = true; PaydayFrequency = 2; PaydayFirst = 15; PaydaySecond = 1;
             PulseStrength = 1; ShowNextTooltip = true;
             DisabledCalendars = new List<string>(); CalendarColors = new Dictionary<string, string>(); Calendars = new List<CalendarChoice>();
         }
         internal void Normalize()
         {
+            Language = Language == "en" ? "en" : "ru";
+            if (WeatherCity != null && !WeatherCity.Valid) WeatherCity = null;
+            ReminderTiming = Math.Max(0, Math.Min(2, ReminderTiming));
+            PaydayFrequency = PaydayFrequency == 1 ? 1 : 2;
+            PaydayFirst = Math.Max(1, Math.Min(31, PaydayFirst)); PaydaySecond = Math.Max(1, Math.Min(31, PaydaySecond));
             Volume = Math.Max(0, Math.Min(100, Volume)); SoundStyle = Math.Max(0, Math.Min(2, SoundStyle));
             PulseStrength = Math.Max(0, Math.Min(2, PulseStrength));
             QuietStart = Math.Max(0, Math.Min(1439, QuietStart)); QuietEnd = Math.Max(0, Math.Min(1439, QuietEnd));

@@ -36,7 +36,7 @@ namespace WinCalendar
         public void Write(string name, string value)
         {
             byte[] bytes = Encoding.Unicode.GetBytes(value);
-            if (bytes.Length > 5120) throw new InvalidOperationException("Данные подключения слишком велики для хранилища Windows.");
+            if (bytes.Length > 5120) throw new InvalidOperationException(UiText.Get("Данные подключения слишком велики для хранилища Windows."));
             IntPtr blob = Marshal.AllocHGlobal(bytes.Length);
             try
             {

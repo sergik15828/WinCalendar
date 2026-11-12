@@ -31,7 +31,7 @@ namespace WinCalendar
         internal CalendarEventList()
         {
             DrawMode = DrawMode.OwnerDrawVariable; BorderStyle = BorderStyle.None;
-            IntegralHeight = false; AccessibleName = "Встречи выбранного дня";
+            IntegralHeight = false; AccessibleName = UiText.Get("Встречи выбранного дня");
             tooltip.UseAnimation = false; tooltip.UseFading = false; tooltip.ShowAlways = true;
             tooltipDelay.Tick += delegate
             {
@@ -170,10 +170,10 @@ namespace WinCalendar
             CalendarEvent[] all = events.ToArray();
             EventRow[] rows = all.OrderBy(e => Weekly ? DisplayDay(e, day, zone).Ticks : 0).ThenBy(e => e.SortOrder).Select(item => new EventRow { Event = item,
                 Past = item.ReminderEnd <= Clock(),
-                Title = Preferences.PrivateMode ? "Занято" : item.Title,
+                Title = Preferences.PrivateMode ? UiText.Get("Занято") : item.Title,
                 Conflict = all.Any(other => other != item && MeetingTools.Overlaps(item, other)),
-                Time = (Weekly ? DisplayDay(item, day, zone).ToString("ddd d MMM", DateText.Russian) + " · " : "") + item.TimeLabel(Weekly ? DisplayDay(item, day, zone) : day, zone),
-                Source = Preferences.PrivateMode ? "Календарь" : String.IsNullOrEmpty(item.CalendarName) ? "Google Calendar" : item.CalendarName }).ToArray();
+                Time = (Weekly ? DisplayDay(item, day, zone).ToString("ddd d MMM", DateText.Culture) + " · " : "") + item.TimeLabel(Weekly ? DisplayDay(item, day, zone) : day, zone),
+                Source = Preferences.PrivateMode ? UiText.Get("Календарь") : String.IsNullOrEmpty(item.CalendarName) ? "Google Calendar" : item.CalendarName }).ToArray();
             string key = day.ToString("yyyyMMdd") + Weekly + String.Join("\u001e", rows.Select(r => r.Event.CalendarId + "\u001f" + r.Event.Id + r.Title + r.Event.Url + r.Event.MeetUrl + r.Time + r.Source + r.Conflict));
             bool unchanged = contentKey == key && dpi == scaleDpi;
             palette = colors; dpi = scaleDpi;
@@ -260,14 +260,14 @@ namespace WinCalendar
                 TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
             using (Brush dot = new SolidBrush(SystemInformation.HighContrast ? palette.Ink : Mix(Preferences.ColorFor(row.Event, palette.Accent), palette.Surface, past ? 0.30 : 1)))
                 args.Graphics.FillEllipse(dot, time.X, source.Y + Pixels(5), Pixels(5), Pixels(5));
-            if (row.Conflict) TextRenderer.DrawText(args.Graphics, "Пересечение", detailFont ?? Font,
+            if (row.Conflict) TextRenderer.DrawText(args.Graphics, UiText.Get("Пересечение"), detailFont ?? Font,
                 new Rectangle(card.Right - Pixels(112), source.Top, Pixels(100), source.Height), accent, TextFormatFlags.Right | TextFormatFlags.SingleLine);
             if (meet)
             {
                 Rectangle button = MeetBounds(args.Bounds);
                 using (GraphicsPath path = Rounded(button, Pixels(5)))
                 using (Brush fill = new SolidBrush(past ? Mix(palette.Accent, palette.Surface, 0.08) : palette.Accent)) args.Graphics.FillPath(fill, path);
-                TextRenderer.DrawText(args.Graphics, "Войти в Meet", detailFont ?? Font, button, past ? ink : palette.OnAccent,
+                TextRenderer.DrawText(args.Graphics, UiText.Get("Войти в Meet"), detailFont ?? Font, button, past ? ink : palette.OnAccent,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
             }
             if ((args.State & DrawItemState.Focus) != 0) ControlPaint.DrawFocusRectangle(args.Graphics, Rectangle.Inflate(card, -3, -3), palette.Ink, background);
@@ -317,7 +317,7 @@ namespace WinCalendar
             internal string Time, Source, Title;
             internal bool Conflict, Past;
             internal string Identity { get { return Event.CalendarId + "\u001f" + Event.Id + "\u001f" + Event.Start; } }
-            public override string ToString() { return Time + ", " + Title + ", " + Source + (Past ? ", Завершено" : "") + (Conflict ? ", Пересечение" : "") + (!Past && CalendarPage.SafeMeetLink(Event.MeetUrl) != null ? ", Войти в Meet: Alt+Enter" : ""); }
+            public override string ToString() { return Time + ", " + Title + ", " + Source + (Past ? UiText.Get(", Завершено") : "") + (Conflict ? UiText.Get(", Пересечение") : "") + (!Past && CalendarPage.SafeMeetLink(Event.MeetUrl) != null ? UiText.Get(", Войти в Meet: Alt+Enter") : ""); }
         }
         [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wparam, IntPtr lparam);
     }

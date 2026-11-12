@@ -20,6 +20,7 @@ namespace WinCalendar
         private Icon smallIcon;
         private bool retryIcon;
         private CalendarPopup calendar;
+        private WeatherDateWindow weatherDate;
         internal DateTime CurrentDate { get; private set; }
         internal CalendarPopup Calendar { get { return calendar; } }
 
@@ -34,14 +35,14 @@ namespace WinCalendar
             Location = new Point(work.Left + 12, work.Bottom - Height - 12);
             StartPosition = FormStartPosition.Manual;
             WindowState = FormWindowState.Minimized;
-            ShowInTaskbar = !shell || !ShellIntegration.HasPinnedShortcut();
+            ShowInTaskbar = !shell || HostButtonNeeded(WeatherDateWindow.IsEnabled, ShellIntegration.HasPinnedShortcut());
             MaximizeBox = false;
             taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
             timer = new Timer();
             timer.Tick += delegate
             {
                 RefreshDate(false);
-                if (ShowInTaskbar && ShellIntegration.HasPinnedShortcut()) ShowInTaskbar = false;
+                RefreshHostPresence();
                 ScheduleNextCheck();
             };
             Resize += delegate
@@ -51,6 +52,11 @@ namespace WinCalendar
             RefreshDate(true);
             calendar = new CalendarPopup(now, Program.OpenGoogleCalendar, integrateWithShell);
             calendar.ExitRequested += delegate { Close(); };
+            calendar.PreferencesChanged += delegate { RefreshDate(true); RefreshHostPresence(); if (weatherDate != null) { weatherDate.Configure(calendar.Preferences); weatherDate.RefreshPlacement(); } };
+            if (integrateWithShell) { weatherDate = new WeatherDateWindow(now, ToggleCalendar, calendar.ShowWeather, calendar.UpdateWeather); weatherDate.Configure(calendar.Preferences); }
+            calendar.ViewWindow.Activated += delegate { if (weatherDate != null) weatherDate.KeepAboveTaskbar(); };
+            calendar.ViewWindow.VisibleChanged += delegate
+            { if (weatherDate != null && weatherDate.IsHandleCreated && !weatherDate.IsDisposed) weatherDate.BeginInvoke(new Action(weatherDate.KeepAboveTaskbar)); };
             if (integrateWithShell)
             {
                 SystemEvents.TimeChanged += OnTimeChanged;
@@ -79,7 +85,7 @@ namespace WinCalendar
             if (previousSmall != null) previousSmall.Dispose();
             CurrentDate = date;
             if (calendar != null) calendar.UpdateToday(date);
-            Text = date.ToString("dddd, d MMMM yyyy", DateText.Russian) + " — WinCalendar";
+            Text = date.ToString("dddd, d MMMM yyyy", DateText.Culture) + " — WinCalendar";
             if (integrateWithShell)
             {
                 try
@@ -119,7 +125,7 @@ namespace WinCalendar
         private void IconNeedsRetry()
         {
             retryIcon = true;
-            Text += " (не удалось обновить закреплённый значок)";
+            Text += UiText.Get(" (не удалось обновить закреплённый значок)");
         }
 
         private void ScheduleNextCheck()
@@ -157,6 +163,8 @@ namespace WinCalendar
                 else if (command == Program.PreviewReminderCommand && integrateWithShell) calendar.PreviewReminder();
                 else if (command == Program.PreferencesCommand && integrateWithShell) calendar.OpenPreferences();
                 else if (command == Program.OpenCalendarCommand && integrateWithShell) ToggleCalendar();
+                else if ((command == Program.WeatherOnCommand || command == Program.WeatherOffCommand) && integrateWithShell)
+                { WeatherDateWindow.IsEnabled = command == Program.WeatherOnCommand; RefreshHostPresence(); weatherDate.RefreshPlacement(); }
                 else RefreshDate(false);
                 return;
             }
@@ -166,10 +174,13 @@ namespace WinCalendar
 
         private void ShowMenu()
         {
-            calendar.ShowCalendarSettings();
+            calendar.OpenPreferences();
         }
 
         internal void StartBackgroundServices() { if (integrateWithShell) calendar.StartBackgroundServices(); }
+        internal static bool HostButtonNeeded(bool widgetEnabled, bool pinned) { return !widgetEnabled && !pinned; }
+        private void RefreshHostPresence()
+        { if (integrateWithShell) ShowInTaskbar = HostButtonNeeded(WeatherDateWindow.IsEnabled, ShellIntegration.HasPinnedShortcut()); }
 
         internal void ToggleCalendar()
         {
@@ -182,6 +193,7 @@ namespace WinCalendar
             timer.Stop();
             timer.Dispose();
             calendar.Dispose();
+            if (weatherDate != null) weatherDate.Dispose();
             if (ownedIcon != null) ownedIcon.Dispose();
             if (smallIcon != null) smallIcon.Dispose();
             if (integrateWithShell)

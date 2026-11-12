@@ -42,11 +42,11 @@ namespace WinCalendar
 
         internal string TimeLabel(DateTime date, TimeZoneInfo zone)
         {
-            if (AllDay) return "Весь день";
+            if (AllDay) return UiText.Get("Весь день");
             DateTime start = TimeZoneInfo.ConvertTime(Timestamp(Start), zone).DateTime;
             DateTime end = TimeZoneInfo.ConvertTime(Timestamp(End), zone).DateTime;
-            string from = start.Date < date.Date ? "Ранее" : start.ToString("HH:mm", CultureInfo.InvariantCulture);
-            string to = end.Date > date.Date && end.TimeOfDay != TimeSpan.Zero ? "далее" : end.ToString("HH:mm", CultureInfo.InvariantCulture);
+            string from = start.Date < date.Date ? UiText.Get("Ранее") : start.ToString("HH:mm", CultureInfo.InvariantCulture);
+            string to = end.Date > date.Date && end.TimeOfDay != TimeSpan.Zero ? UiText.Get("далее") : end.ToString("HH:mm", CultureInfo.InvariantCulture);
             return from + " — " + to;
         }
 
@@ -96,7 +96,7 @@ namespace WinCalendar
                 object useDefault, overrides;
                 bool custom = reminders != null && reminders.TryGetValue("useDefault", out useDefault) && Object.Equals(useDefault, false);
                 List<int> minutes = custom ? (reminders.TryGetValue("overrides", out overrides) ? GoogleReminderRules.PopupMinutes(overrides) : new List<int>()) : new List<int>(defaultMinutes);
-                page.Events.Add(new CalendarEvent { Id = Json.Text(data, "id"), Title = String.IsNullOrWhiteSpace(title) ? "Без названия" : title,
+                page.Events.Add(new CalendarEvent { Id = Json.Text(data, "id"), Title = String.IsNullOrWhiteSpace(title) ? UiText.Get("Без названия") : title,
                     Url = SafeGoogleLink(Json.Text(data, "htmlLink")), MeetUrl = MeetLink(data), ICalUid = Json.Text(data, "iCalUID"), AllDay = allDay, Start = from, End = to, PopupReminderMinutes = minutes });
             }
             return page;

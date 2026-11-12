@@ -17,6 +17,10 @@ if ($changed) {
 }
 Copy-Item (Join-Path $sourceDir 'WinDate.exe.config') ($installedExe + '.config') -Force
 Copy-Item (Join-Path $root 'Settings.cmd') (Join-Path $installDir 'Settings.cmd') -Force
+foreach ($prototypeCommand in @('EnableWeatherPrototype.cmd', 'DisableWeatherPrototype.cmd')) {
+    $prototypePath = Join-Path $root $prototypeCommand
+    if (Test-Path $prototypePath) { Copy-Item $prototypePath (Join-Path $installDir $prototypeCommand) -Force }
+}
 # Keep an existing startup preference when moving out of the development folder.
 $run = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\Windows\CurrentVersion\Run', $true)
 if ($null -ne $run) {

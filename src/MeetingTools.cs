@@ -16,10 +16,17 @@ namespace WinCalendar
         }
         internal static string NextLabel(CalendarEvent item, DateTimeOffset now, bool privacy)
         {
-            if (item == null) return "Ближайших встреч нет";
+            if (item == null) return UiText.Get("Ближайших встреч нет");
             DateTime start = item.ReminderStart.ToLocalTime().DateTime;
-            string when = item.ReminderStart <= now ? "Сейчас" : start.Date == now.LocalDateTime.Date ? "Через " + Math.Max(1, (int)Math.Ceiling((item.ReminderStart - now).TotalMinutes)) + " мин" : start.ToString("d MMM, HH:mm", DateText.Russian);
-            return when + " · " + (privacy ? "Занято" : item.Title);
+            string when = item.ReminderStart <= now ? UiText.Get("Сейчас") : start.Date == now.LocalDateTime.Date ? UiText.Get("Через ") + Countdown(item.ReminderStart - now) : start.ToString("d MMM, HH:mm", DateText.Culture);
+            return when + " · " + (privacy ? UiText.Get("Занято") : item.Title);
+        }
+        private static string Countdown(TimeSpan remaining)
+        {
+            int minutes = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+            if (minutes < 60) return minutes + UiText.Get(" мин");
+            int rest = minutes % 60;
+            return minutes / 60 + UiText.Get(" ч") + (rest == 0 ? "" : " " + rest + UiText.Get(" мин"));
         }
     }
 }

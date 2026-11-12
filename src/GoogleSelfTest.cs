@@ -224,7 +224,8 @@ namespace WinCalendar
                     popup.ShowAt(new Point(50, 50), Screen.PrimaryScreen.WorkingArea);
                     IntPtr original = popup.Handle;
                     popup.Panel.SettingsButton.PerformClick();
-                    check(popup.Panel.SettingsVisible && popup.Handle == original, "Gear opens settings inside the same flyout, round " + round);
+                    check(popup.PreferencesVisible && popup.Handle == original, "Gear opens unified preferences inside the same flyout, round " + round);
+                    popup.PreferencesPage.ShowPage(4); popup.PreferencesPage.ConnectionButton.PerformClick();
                     popup.Panel.ConnectButton.PerformClick();
                     await Task.Delay(20);
                     check(popup.EditorVisible && popup.Handle == original && popup.Visible, "Sign-in opens client editor without another window or modal loop, round " + round);
@@ -242,7 +243,8 @@ namespace WinCalendar
                     popup.Editor.CancelButton.PerformClick();
                     check(!popup.EditorVisible && popup.Panel.SettingsVisible, "Editor back returns to settings without closing another window, round " + round);
                     popup.Panel.SettingsButton.PerformClick();
-                    check(!popup.Panel.SettingsVisible, "Settings close returns to calendar, round " + round);
+                    popup.PreferencesPage.BackButton.PerformClick();
+                    check(!popup.Panel.SettingsVisible && !popup.PreferencesVisible, "Preferences Back returns to calendar, round " + round);
                     popup.ViewWindow.Close();
                     check(!popup.Visible && !popup.ViewWindow.IsDisposed, "Closing the flyout keeps its reusable window alive, round " + round);
                 }

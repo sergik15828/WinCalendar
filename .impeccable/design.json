@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-12T16:46:11.707704+00:00",
+  "generatedAt": "2026-11-12T20:55:53.375419+00:00",
   "title": "Design System: WinCalendar",
   "extensions": {
     "colorMeta": {
@@ -311,6 +311,71 @@
           "oklch(85% 0.0000 0.00)",
           "oklch(95% 0.0000 0.00)"
         ]
+      },
+      "weather-sun": {
+        "role": "secondary",
+        "displayName": "Weather sun",
+        "canonical": "#FFB020"
+      },
+      "weather-light-sun-edge": {
+        "role": "secondary",
+        "displayName": "Light sun edge",
+        "canonical": "#BF680D"
+      },
+      "weather-dark-sun-edge": {
+        "role": "secondary",
+        "displayName": "Dark sun edge",
+        "canonical": "#FFBE41"
+      },
+      "weather-light-cloud": {
+        "role": "secondary",
+        "displayName": "Light cloud",
+        "canonical": "#3C91E6"
+      },
+      "weather-dark-cloud": {
+        "role": "secondary",
+        "displayName": "Dark cloud",
+        "canonical": "#66AAFF"
+      },
+      "weather-light-cloud-edge": {
+        "role": "secondary",
+        "displayName": "Light cloud edge",
+        "canonical": "#2166B4"
+      },
+      "weather-dark-cloud-edge": {
+        "role": "secondary",
+        "displayName": "Dark cloud edge",
+        "canonical": "#87C1FF"
+      },
+      "weather-light-moon": {
+        "role": "secondary",
+        "displayName": "Light moon",
+        "canonical": "#D59522"
+      },
+      "weather-dark-moon": {
+        "role": "secondary",
+        "displayName": "Dark moon",
+        "canonical": "#FFE1A0"
+      },
+      "weather-light-rain": {
+        "role": "secondary",
+        "displayName": "Light rain",
+        "canonical": "#006FD6"
+      },
+      "weather-dark-rain": {
+        "role": "secondary",
+        "displayName": "Dark rain",
+        "canonical": "#5DB5FF"
+      },
+      "weather-light-snow": {
+        "role": "secondary",
+        "displayName": "Light snow",
+        "canonical": "#087CB9"
+      },
+      "weather-dark-snow": {
+        "role": "secondary",
+        "displayName": "Dark snow",
+        "canonical": "#66D0FF"
       }
     },
     "typographyMeta": {
@@ -348,7 +413,7 @@
       },
       "calendar-preferences": {
         "displayName": "Preference and tip text",
-        "purpose": "9.5pt Segoe UI for the three local preference pages and optional taskbar meeting tip."
+        "purpose": "9.5pt Segoe UI in compact five-tab preferences; section headings12pt Segoe UI Semibold. Compact tooltip9.5pt."
       }
     },
     "shadows": [],
@@ -356,22 +421,25 @@
       {
         "name": "reminder-breathe",
         "value": "1800ms cosine cycle; contour expands 0–3 logical px per side",
-        "purpose": "Existing breathing contour, badge and ripple until acknowledgement or snooze. Selectable intensity factors 0.65, 1 and 1.25; static under Windows reduced motion or High Contrast. Animation never rewrites the ICO."
+        "purpose": "Pinned fallback1.8s breathingoutline/nodot. Widgetopaque Dock-inspired2.6s3ballistic hops withpause; normal24px, second42%,third14%, strengths16/24/30,28pxheadroom; nofade. Staticunderreducedmotion/HighContrast."
       }
     ],
     "breakpoints": [],
     "native": {
       "platform": "Windows 11",
-      "host": "One reusable 688 × 380 logical-pixel borderless Windows Forms tool window for calendar, settings, three preference pages and OAuth editing; no app-window taskbar button.",
+      "host": "One native HWND: calendar/settings/OAuth688×380 logical; compact preferences720×460 with fixed header/footer and6tabs, viewportscrollrecovery for constrainedworkareas; no separate app-window button in widgetmode. Weatherdetails688×380 uses sameHWND.",
       "interaction": "Pinned date toggles the flyout and acknowledges pending reminders. Gear opens inline settings and local preferences. Meet action/Alt+Enter joins; card/Enter opens its event. Background startup remains hidden.",
       "identity": "Incumbent red/white weekday/day icon and native executable identity; no explicit AppUserModelID.",
       "elevation": "Windows native shadow and requested DWM rounded corners; event cards have borders and no shadows.",
       "dpi": "688 × 380 logical pixels; actual window DPI scales bounds, fonts and painting; constrained work areas scroll.",
       "reminders": "Non-activating, click-through layered overlay kept above Explorer; Google popup rules; current-user DPAPI pending and snoozed-batch state; independent new notifications; three local sounds, volume/mute, quiet hours and pulse levels; no ICO rewrite.",
-      "taskbarTip": "Optional 650ms pointer dwell over the pin; 360 × 64 logical-pixel non-activating click-through Form above the taskbar. Hide off-pin or when calendar opens; private mode masks title.",
-      "preferences": "Three inline tabs: calendars/source-color overrides; sound/volume/quiet hours; privacy/pulse/taskbar tip. DPAPI local storage, Save applies and Back discards the draft. Google remains read-only.",
+      "taskbarTip": "Single full-widget/pin hover tip, observer40ms/dwell650ms; nextmeeting ifenabled/data else localizedfulldate. Max300logical/twolines/min120, padding8h6v; abovewidgettextx+46(orpinleft)6gap, clamped, no pointerdrift/classshadow/animation. Noactivate/clickthrough; acknowledgement disablesobserver to avoid reopeningbehindpopup.",
+      "preferences": "Compact720×460 page,6tabs113×32: General/Reminders/Sound(withquiet)/Payday/Calendars(withGoogleconnection)/Weather(manualcitysearch). Viewport20,112,680×276;2cols336px/gap8. Fixedversionheader/SaveBackfooter; normal100/125/150% fitswithoutscroll, smallerworkareasretainviewportscroll. General pairs generalcontrols/manualpin. Save appliesexistingRUEN/widget/startup/timing/payday; sameHWNDgrows/reverts; Weatherenableddefault/nocitypreset; citysavedonSave.",
       "agenda": "0.6.3: only ongoing/future events with end > local clock appear in day/week lists, counts and dots. Remove completed entries at the next-end deadline via the per-second background tick, without API wait. Healthy confirmed empty today shows exactly На сегодня митов больше нет, приятного вечера; error/loading/hidden-calendar states retain precedence. Calendar-symbol button 32×32 at (560,16), accessible Google Calendar browser action; next label (24,328), 296×18, 12px below grid and 8px extra left inset. Meet and wheel behavior retained.",
-      "settingsVersion": "Settings-only subtitle: WinCalendar · followed by typeof(CalendarPanel).Assembly.GetName().Version.ToString(3), showing major.minor.build (current 0.6.4). Calendar weekday subtitle, geometry and styling are unchanged."
+      "settingsVersion": "Settings-only subtitle: WinCalendar · followed by typeof(CalendarPanel).Assembly.GetName().Version.ToString(3), showing major.minor.build (current 0.6.4). Calendar weekday subtitle, geometry and styling are unchanged.",
+      "weatherPrototype": "Historical0.7.1 branch mode; included in main from0.8.1; 0.6.4 baseline remains at d534870. Opt-in160×44 layered NOACTIVATE TOOLWINDOW date beside weather. Full-color authored paper25×27 at12,9, warmwhite #FFFCFA, rounded4, red8px header #C42B36, silver bindings #E1E3E8, 2×3 grid with one redcell, no numeral inicon; maintext contains the only date; date14px Segoe UI Semibold face/nativeRegular at y6/weekday12px secondary at y22, closer lines; x46 and widths unchanged. Alpha1 rounded hit interior, alpha22 hover, transparent exterior; separate pulse click-through. Exact shell IDs only, no titles/names. Placement2s, exposure500ms; safe transient cache<3s, missing weather retained only unchangedbar/nooverlap, confirmedcrowding hides immediately; missing transitions may wait roughly4s. No background paint; immediate/queued noactivate raise on ownpopup visibility/activation/click; 50ms checks1s afterclick. Opt-inflag/on-off/oldpin unchanged. RU/EN savedliveUI/dateculture. Widgetattention opaque Dock-inspired3ballistic hops over2.6s: amplitudes16/24/30logical, second42%,third14%, thenpause; no opacitychange. Activecanvas160×72 with28transparentheadroom, nativeYcompensates; text/basehit160×44fixed.33ms visibleactiveonly; reducedmotionstatic/noheadroom. Overlayhiddeninwidgetmode, ownsengine/chime; pinnedfallback1.8soutline/nodot.",
+      "payday": "Optional enableddefault112×44badge216,12; headingwidth194. Authoredgoldmoneybag,12pxSemiboldcountdown/10.5pxsecondary. Localcalendardays to nextpayment incltoday; defaults2monthly15/1, one/two frequency and1–31days; clampmonthend,noshiftweekends. Accessible nextdate.",
+      "ownWeather": "0.8.0 combined320×44: dateleft160unchanged, divider166, authoredweathericon179,9,30×30; temperature218,6,96×20; city/status218,22,96×16. Weatheroff160dateonly. Manualcitysearch+region/countryselection; defaultWeatherEnabledtrue/citynull, noAPIkey/geolocation. OpenMeteocurrent+3days,Celsius/mps,15minrefresh/5retry/12stimeout/boundedresponses; DPAPIcoordinatecache, stale45minorfailure/maxdisplay24h/revisionguard. Weatherclickdetails/noack; dateclickack. SafeindependentleftprimaryhorizontalplacementwhenWindowsweatheroff, adjacentwhileon; opensOSsettingsonly/noExplorerchanges. Vividauthoredweathercolors useweather-*frontmattertokens; HighContrastsystemink. Details4footerbuttons Back/City/YandexWeather/DataOpenMeteo; YandexbrowserURLonly(selectedcoords/escapedcitycountry), disablednococity, noAPI/key; datastaysOpenMeteo. Mouseup validatesactualpresentedframesize toincludeactiveheadroom, notstaleWinFormsClientRectangle. Ownoff160dateatrightofnativeweatherwhenuserenablesWindowsWidgets; safeleftfallbackuntilthen. Savechangedweathermode+widgetenabled opensOSsettings/hint, neverautowritesTaskbarDa. Clearplacement/layoutRevisionguardrejectsoldwidthreply. ExplicitweatherSelected routesfirstdateclickfromhiddenweathertoCalendar; repeatcloses, dateack/weathernoack."
     },
     "verification": {
       "tests": "artifacts/self-test.txt — all 323 native checks pass",
@@ -418,7 +486,55 @@
         "todayEveningMessageVisible": true,
         "verified": "Probe exit 0. Week switching and scrolling both ways retain the same window; return to day view shows the exact evening message; final flyout hidden. No personal event text logged. Current source passes all 323 checks; fresh remaining-agenda finish review ship with no material fixes."
       },
-      "settingsVersion": "0.6.4 label-only extension: all 323 checks pass. Implementer and fresh reviewer opened six current calendar-settings light/dark captures at 96/120/144 DPI; version label unclipped, review verdict ship. Prior native installation and feature evidence retain their stated versions and scope."
+      "settingsVersion": "0.6.4 label-only extension: all 323 checks pass. Implementer and fresh reviewer opened six current calendar-settings light/dark captures at 96/120/144 DPI; version label unclipped, review verdict ship. Prior native installation and feature evidence retain their stated versions and scope.",
+      "weatherPrototype": {
+        "tests": "Historical0.7.0:331checks pass",
+        "renders": "All331checks pass after final Segoe UI Semibold and closer-line spacing changes. All12 regenerated weather-widget light/dark rest/hover96/120/144 own-renderer fixtures on nominal backgrounds independently reopened by implementer and fresh reviewer. Latest verdict ship, no material fixes, collisions or clipping. Installed build matches final renderer. No desktop captures.",
+        "native": "Preceding wide own-window message probe before final renderer-only font/spacing edits; unchanged window logic, not a fresh native recheck after font changes. Date204,1022,200×55; pulse203,1019,60×60; noappbutton/noactivation; sharedpulse/clickack/open/repeatclose; finalcalendarhidden. StableAfterOpenAndClose=True:50ms visibility polls for2.5s afteropen and2.5s afterclose, hide-counter baseline beforeclick, nohidden transitions. No pixel z-order or operating-system flicker guarantee.",
+        "limits": "Earlier square Explorer startup verified flag persistence; current wide restart not repeated. Computer-use desktop capture failed sandbox URI. Actual desktop appearance, physical mouse, pixel occlusion/z-order, fullscreen/autohide transitions and mixed monitors unverified. Retention eligibility checks age<3s on2s locator cadence, not hard3s visibility maximum. Current full-color/stability review ship, no material fixes."
+      },
+      "weatherUsability071": {
+        "tests": "Historical preceding unified-page build:366checks passed; timing/preferences/language/font/headroom/payday unchanged by compacttabrefinement.",
+        "renders": [
+          "artifacts/settings-unified-{ru,en}-{light,dark}-{96,120,144}.png",
+          "artifacts/payday-calendar-{light,dark}-{96,120,144}.png",
+          "artifacts/english-core-{light,dark}-{96,120,144}.png",
+          "artifacts/widget-blink-{light,dark}-{96,120,144}.png",
+          "artifacts/widget-compact-tooltip.png"
+        ],
+        "review": "Historical preceding unified-page31fixture/sourceflow/native review SHIP. Currentcompacttabreview alsoSHIP, recorded separately.",
+        "native": "Historical unified-page installedprobePASS artifacts/weather-installed.txt2026-11-12 22:30:54: Datebase204,1022,200×55; IconAnimationAdvanced/StoppedAfterClick/StableAfterOpenAndClose/UnifiedPreferencesSameWindow=True; FinalCalendarVisible=False. Own-windowmessages/stateproof.",
+        "limits": "No physicalmouse/pixelartifact proof; computer-use sandboxURI failure persists; fullscreen/autohide/mixedmonitorunverified. NoGoogleeventcreated."
+      },
+      "compactPreferences": {
+        "renders": "artifacts/settings-tabs-{ru,en}-{light,dark}-{96,120,144}.png —12freshcontact sheets, five pages vertically each; all independently opened.",
+        "tests": "Final compactbuild after keyboardfix366PASS; ProcessCmdKey keyboardrouting and explicitTabIndex reviewed.",
+        "review": "Fresh compact_tabs_finish_review SHIP: all12fixtures and final keyboard source.",
+        "native": "Exactfinalkeyboardfixedbinary passes fullnativeprobe after normalExplorerrestart: animationadvanced/clickack/openclosestable/UnifiedPreferencesSameWindow=True/finalhidden; persistedwidgetflag acrossnormalrestart PASS. Earlierfirstcompactprobe alsoPASS. Followup afterlaunchscriptexit: InstalledRunning=1, InstalledMatchesBuild=True.",
+        "limits": "Earlier exactfinalinstallattempt failed secondclickclose, nextprobe foundnohost. SubsequentnormalExplorerrestartPASS doesnot establishrootcause or stabilityofeverylaunchpath. Ownwindowproof remainsnotphysicalmouse/pixelartifactverification."
+      },
+      "ownWeather080": {
+        "status": "FINAL389ALLPASS artifacts/weather-080-000929; sixmodefixturesreviewSHIP. Prior30UIreview:12vivid/Yandexcombined/detailsfrom235611+18settings/searchfrom232923; no claimallregeneratedcopiesreopened. ExactfinalinstalledfullnativePASS.",
+        "renders": [
+          "artifacts/weather-080-232923/settings-tabs-{ru,en}-{light,dark}-{96,120,144}.png",
+          "artifacts/weather-080-232923/combined-weather-{light,dark}-{96,120,144}.png",
+          "artifacts/weather-080-232923/weather-details-{light,dark}-{96,120,144}.png",
+          "artifacts/weather-080-232923/weather-search-{light,dark}-{96,120,144}.png"
+        ],
+        "systemWeather": "AuthorizedTaskbarDaSetValue initially denied byWindowsUnauthorizedAccessException, noautoapprovalrejection. UsersubsequentlyconfirmedWidgetsoff; readonlyTaskbarDa=0DWORD.",
+        "limits": "Currentphysicalmouse/desktop/fullscreen/mixedmonitor limitations unchanged. Earlier0.7.xproof historical.",
+        "native": "FINALexactinstalledprobe88709exit0PASS: Date11,1022,400×55; IconAnimationAdvanced/StoppedAfterClick/StableAfterOpenAndClose/WeatherDetailsSameWindow/UnifiedPreferencesSameWindow=True; SystemWeatherVisible=False; FinalCalendarVisible=False. Actualframeclickguard andhiddenweathertocalendarfirstclick verified.",
+        "apiTransport": "Weather-onlyHTTP-handlerTLS1.2, normalcertvalidation, noGoogle/globalsecuritychange. ActualC#readonlyprobePASS Ереван5results(firstЕреванАрмения)+currentweather+3dayforecast; narrowTLS/diagnosticsreviewSHIP. EarlierexternalYerevan8results retainedproviderproof. No cityautochosen/saved; usersearchselectSave.",
+        "hitArea": "Diagnosticnative400×90/baseheight55 clickkeptReminderActive1, isolated rejectionbeforeack inshortWinFormsclientrect. StoreactualbitmapSizeafterPresent andvalidateclickagainstframe. Nativeheadroomregressionpassed385intermediate; older0.7.1rootcause stillunproven.",
+        "yandex": "UserexplicitkeepOpenMeteodata/addYandexbrowserlink; noYandexAPI/key. BothURL/disablednococitytestsPASS within387.",
+        "currentRenders": [
+          "artifacts/weather-080-235611/combined-weather-{light,dark}-{96,120,144}.png",
+          "artifacts/weather-080-235611/weather-details-{light,dark}-{96,120,144}.png"
+        ],
+        "modeRenders": "artifacts/weather-080-000929/weather-modes-{light,dark}-{96,120,144}.png —sixownon/off×RUENsheets, independentlyreviewedSHIP.",
+        "probeBaseline": "Priorpreferenceheightassert startedwithPrefsalreadyopen; diagnosticBackbeforePreview nowmakesbaselineindependent. This isseparatefromproductactualpresentedframehitguardregression. Extraheadroomclick385intermediatepassed, final389/nativepassed. Historical0.7.1failurecause isnotretroactivelyclaimed.",
+        "currentTests": "artifacts/weather-080-000929 —389PASS"
+      }
     }
   },
   "components": [
@@ -484,16 +600,44 @@
     {
       "name": "Reminder accent",
       "kind": "custom",
-      "description": "Illustrative normal-intensity 1.8s overlay; delicate/expressive scale contour by 0.65/1.25. Local snooze defers a batch for 5/10 minutes; new reminders remain independent. Audio has three local styles, volume/mute and quiet hours; visual attention remains.",
-      "html": "<div class=\"ds-reminder\" role=\"img\" aria-label=\"Есть неподтверждённое напоминание\"><div class=\"ds-reminder-icon\"><b>ЧТ</b><strong>12</strong></div><span class=\"ds-reminder-outline\"></span><span class=\"ds-reminder-ripple\"></span><span class=\"ds-reminder-badge\"></span></div>",
-      "css": ".ds-reminder{position:relative;width:48px;height:48px;font-family:\"Segoe UI\",sans-serif;pointer-events:none}.ds-reminder-icon{position:absolute;left:8px;top:8px;width:32px;height:32px;border-radius:6px;background:#FCFCFC;overflow:hidden;text-align:center}.ds-reminder-icon b{display:block;height:14px;background:#C42B36;color:#FFFFFF;font-size:11px}.ds-reminder-icon strong{color:#18181B;font-size:18px;line-height:18px}.ds-reminder-outline{position:absolute;box-sizing:border-box;left:8px;top:8px;width:32px;height:32px;border:1.25px solid #C42B36;border-radius:6px;opacity:.255;animation:ds-reminder-outline 1.8s ease-in-out infinite}.ds-reminder-badge{position:absolute;box-sizing:border-box;left:33px;top:9px;width:6px;height:6px;border:.9px solid #FFFFFF;border-radius:50%;background:#C42B36;opacity:.706;animation:ds-reminder-badge 1.8s ease-in-out infinite}.ds-reminder-ripple{position:absolute;box-sizing:border-box;left:31px;top:7px;width:10px;height:10px;border:1.4px solid #C42B36;border-radius:50%;opacity:.588;animation:ds-reminder-ripple 1.8s linear infinite}@keyframes ds-reminder-outline{50%{left:5px;top:5px;width:38px;height:38px;border-width:2.5px;border-radius:9px;opacity:.941}}@keyframes ds-reminder-badge{50%{left:31.5px;top:7.5px;width:9px;height:9px;opacity:1}}@keyframes ds-reminder-ripple{to{left:25px;top:1px;width:22px;height:22px;opacity:0}}@media(prefers-reduced-motion:reduce),(forced-colors:active){.ds-reminder-outline,.ds-reminder-badge,.ds-reminder-ripple{animation:none;opacity:1}.ds-reminder-ripple{display:none}}@media(forced-colors:active){.ds-reminder-outline{border-color:Highlight}.ds-reminder-badge{background:Highlight}}"
+      "description": "0.7.1 pinned fallback: outline only, no badge dot/ripple. Widget mode instead animates the small calendar icon; engine/audio/snooze rules unchanged.",
+      "html": "<div class=\"ds-reminder\" role=\"img\" aria-label=\"Есть неподтверждённое напоминание\"><div class=\"ds-reminder-icon\"><b>ЧТ</b><strong>12</strong></div><span class=\"ds-reminder-outline\"></span></div>",
+      "css": ".ds-reminder{position:relative;width:48px;height:48px;font-family:\"Segoe UI\",sans-serif;pointer-events:none}.ds-reminder-icon{position:absolute;left:8px;top:8px;width:32px;height:32px;border-radius:6px;background:#FCFCFC;overflow:hidden;text-align:center}.ds-reminder-icon b{display:block;height:14px;background:#C42B36;color:#FFFFFF;font-size:11px}.ds-reminder-icon strong{color:#18181B;font-size:18px;line-height:18px}.ds-reminder-outline{position:absolute;box-sizing:border-box;left:8px;top:8px;width:32px;height:32px;border:1.25px solid #C42B36;border-radius:6px;opacity:.255;animation:ds-reminder-outline 1.8s ease-in-out infinite}@keyframes ds-reminder-outline{50%{left:5px;top:5px;width:38px;height:38px;border-width:2.5px;border-radius:9px;opacity:.941}}@media(prefers-reduced-motion:reduce),(forced-colors:active){.ds-reminder-outline,.ds-reminder-badge,}@media(forced-colors:active){.ds-reminder-outline{border-color:Highlight}}"
     },
     {
       "name": "Next meeting taskbar tip",
       "kind": "custom",
-      "description": "Portable static preview of the optional native tip after 650ms dwell. Production uses a click-through, non-activating Form; private mode replaces the title with Занято.",
+      "description": "0.7.1 fullwidgetcompacthover, max300px/twolines, fixedabove textx+46 with6gap;40msobserver/650dwell, no pointerdrift/shadow/animation.",
       "html": "<div class=\"ds-next-tip\" role=\"status\">Через 12 мин · Планирование недели — синтетический пример</div>",
-      "css": ".ds-next-tip{width:336px;min-height:48px;padding:8px 12px;background:#FFFFFF;color:#202020;font:9.5pt \"Segoe UI\",sans-serif;overflow:hidden;text-overflow:ellipsis;pointer-events:none}"
+      "css": ".ds-next-tip{width:max-content;max-width:284px;min-width:104px;padding:6px 8px;background:#FFFFFF;color:#202020;font:9.5pt \"Segoe UI\",sans-serif;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;pointer-events:none}"
+    },
+    {
+      "name": "Weather date prototype — branch only",
+      "kind": "custom",
+      "description": "Branch0.7.1: full-opacity calendar vector makes3 Dock-inspired ballistic hops over2.6s withpause, normal24px/second42%/third14%;28pxnativeheadroom keeps maintext/basehitfixed. Preview approximates ballistic arcs; native highcontrast/reducedmotionstatic.",
+      "html": "<div class=\"ds-weather-stage\"><button class=\"ds-weather-date\" aria-label=\"Thursday, 12 November 2026 — open WinCalendar\"><svg width=\"40\" height=\"44\" viewBox=\"0 0 40 44\" aria-hidden=\"true\"><defs><clipPath id=\"ds-weather-page\"><rect x=\"12\" y=\"9\" width=\"25\" height=\"27\" rx=\"4\"/></clipPath></defs><rect x=\"12\" y=\"9\" width=\"25\" height=\"27\" rx=\"4\" fill=\"#FFFCFA\" stroke=\"#F5F5F5\" stroke-opacity=\".33\" stroke-width=\".75\"/><path d=\"M12 9h25v8H12z\" clip-path=\"url(#ds-weather-page)\" fill=\"#C42B36\"/><path d=\"M19 7v5M30 7v5\" stroke=\"#E1E3E8\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><path fill=\"#989BA4\" d=\"M17 22h3v3h-3zM27 22h3v3h-3zM17 28h3v3h-3zM22 28h3v3h-3zM27 28h3v3h-3z\"/><path fill=\"#C42B36\" d=\"M22 22h3v3h-3z\"/></svg><b>12 November</b><span>Thursday</span></button></div>",
+      "css": ".ds-weather-stage{width:176px;padding:8px;background:#202020}.ds-weather-date{position:relative;width:160px;height:44px;border:0;border-radius:6px;padding:0;background:rgba(245,245,245,.00392);color:#F5F5F5;font-family:\"Segoe UI\",sans-serif;text-align:left;cursor:pointer}.ds-weather-date svg{position:absolute;left:0;top:0}.ds-weather-date b{position:absolute;left:46px;top:6px;right:8px;height:20px;font-family:\"Segoe UI Semibold\",\"Segoe UI\",sans-serif;font-size:14px;font-weight:600;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-weather-date span{position:absolute;left:46px;top:22px;right:8px;font-size:12px;line-height:16px;color:#BDBDBD}.ds-weather-date:hover,.ds-weather-date:active{background:rgba(245,245,245,.08627)}.ds-weather-date:focus-visible{outline:1px dotted #F5F5F5;outline-offset:-3px}@media(forced-colors:active){.ds-weather-date{background:Canvas;color:CanvasText}.ds-weather-date span{color:CanvasText}}.ds-weather-date svg{overflow:visible}.ds-weather-stage{padding-top:36px;overflow:visible}.ds-weather-date:focus-visible svg{animation:ds-weather-dock 2.6s linear infinite}@keyframes ds-weather-dock{0%,28%,47%,59%,100%{transform:translateY(0)}14%{transform:translateY(-24px)}37.5%{transform:translateY(-10px)}53%{transform:translateY(-3px)}}@media(prefers-reduced-motion:reduce){.ds-weather-date:focus-visible svg{animation:none;outline:2px solid #FF8B91;outline-offset:-5px}}"
+    },
+    {
+      "name": "Compact preferences",
+      "kind": "custom",
+      "description": "Current0.8.0 compact720×460 native6tabpreferences preview; fixedheader/footer, no routinebodyscroll; constrainedworkarea scrollrecovery. General shown with manualpin guidance alongside.",
+      "html": "<div class=\"ds-compact\"><header><strong>Preferences</strong><small>WinCalendar · 0.8.0</small></header><nav aria-label=\"Preferences pages\"><button aria-pressed=\"true\">General</button><button>Reminders</button><button>Sound</button><button>Payday</button><button>Calendars</button><button>Weather</button></nav><div class=\"ds-compact-body\"><section><h3>General</h3><label>Language <select><option>English</option><option>Русский</option></select></label><label><input type=\"checkbox\" checked> Widget next to weather</label><label><input type=\"checkbox\"> Start with Windows</label><label><input type=\"checkbox\"> Private mode</label></section><section><h3>Pinned icon</h3><p>Manage pinning through Windows.</p><button>Show app shortcut</button></section></div><footer><button>Back</button><button class=\"ds-save\">Save</button></footer></div>",
+      "css": ".ds-compact{width:680px;height:420px;padding:20px;background:#FAFAFA;color:#202020;font:9.5pt \"Segoe UI\",sans-serif;display:flex;flex-direction:column}.ds-compact header{height:52px;flex-shrink:0}.ds-compact strong{font-size:17pt}.ds-compact small{display:block;color:#626262}.ds-compact nav{display:flex;height:40px;flex-shrink:0}.ds-compact nav button{width:113px;height:32px;padding:0}.ds-compact nav [aria-pressed=true]{background:#E8E8E8}.ds-compact-body{height:276px;display:grid;grid-template-columns:336px 336px;gap:8px;overflow:auto}.ds-compact h3{font:12pt \"Segoe UI Semibold\",\"Segoe UI\",sans-serif;margin:0 0 24px}.ds-compact label{display:block;margin:14px 0}.ds-compact select{width:160px}.ds-compact footer{display:flex;justify-content:space-between;padding-top:18px;flex-shrink:0}.ds-compact button{height:34px;border:0;padding:0 20px;background:#FAFAFA;color:#202020;font:9.5pt \"Segoe UI\",sans-serif;cursor:pointer}.ds-compact button:hover{background:#E8E8E8}.ds-compact .ds-save{background:#C42B36;color:white;width:204px}.ds-compact button:focus-visible,.ds-compact select:focus-visible{outline:1px dotted currentColor;outline-offset:-3px}"
+    },
+    {
+      "name": "Payday badge",
+      "kind": "custom",
+      "description": "Informational112×44 calendarheaderbadge; enableddefault2payments15/1. Nextlocalcalendardate withmonthendclamp, todayincluded.",
+      "html": "<div class=\"ds-payday\" role=\"img\" aria-label=\"3 days to payday, 15 November\"><svg viewBox=\"0 0 32 44\" width=\"32\" height=\"44\" aria-hidden=\"true\"><path d=\"M10 15C3 20 1 27 5 33C10 38 23 37 27 32C30 26 25 19 21 15ZM9 7L15 9 23 6 20 14 11 14Z\" fill=\"#E8B242\" stroke=\"#9B6918\" stroke-width=\"1.1\"/><path d=\"M10 15h12M20 22C10 17 10 26 16 26C23 26 21 33 11 30M16 19v14\" fill=\"none\" stroke=\"#9B6918\" stroke-width=\"1.3\"/></svg><strong>3 days</strong><span>to payday</span></div>",
+      "css": ".ds-payday{position:relative;width:112px;height:44px;background:#FAFAFA;color:#202020;font-family:\"Segoe UI\",sans-serif}.ds-payday svg{position:absolute;left:0;top:0}.ds-payday strong{position:absolute;left:36px;top:8px;font-family:\"Segoe UI Semibold\",\"Segoe UI\",sans-serif;font-size:12px;font-weight:600;white-space:nowrap}.ds-payday span{position:absolute;left:36px;top:24px;color:#626262;font-size:10.5px;white-space:nowrap}"
+    },
+    {
+      "name": "Own weather widget",
+      "kind": "custom",
+      "description": "0.8.0 combined320×44calendar-left/weather-right; illustrative fixture city, not a saved user location. Weather click opens same-HWNDdetails and does not acknowledge reminders. Vivid sun/blueweatherpalette; detailsalsooffers separateYandexbrowserlink whileOpenMeteoremainsdata.",
+      "html": "<div class=\"ds-own-weather\"><div class=\"ds-own-date\"><svg width=\"40\" height=\"44\" viewBox=\"0 0 40 44\" aria-hidden=\"true\"><defs><clipPath id=\"ds-own-weather-page\"><rect x=\"12\" y=\"9\" width=\"25\" height=\"27\" rx=\"4\"/></clipPath></defs><rect x=\"12\" y=\"9\" width=\"25\" height=\"27\" rx=\"4\" fill=\"#FFFCFA\" stroke=\"#F5F5F5\" stroke-opacity=\".33\" stroke-width=\".75\"/><path d=\"M12 9h25v8H12z\" clip-path=\"url(#ds-own-weather-page)\" fill=\"#C42B36\"/><path d=\"M19 7v5M30 7v5\" stroke=\"#E1E3E8\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><path fill=\"#989BA4\" d=\"M17 22h3v3h-3zM27 22h3v3h-3zM17 28h3v3h-3zM22 28h3v3h-3zM27 28h3v3h-3z\"/><path fill=\"#C42B36\" d=\"M22 22h3v3h-3z\"/></svg><strong>12 November</strong><small>Thursday</small></div><button class=\"ds-own-current\" aria-label=\"Weather details: illustrative city, 8 degrees\"><svg viewBox=\"0 0 30 30\" aria-hidden=\"true\"><circle cx=\"15\" cy=\"15\" r=\"6\" fill=\"#FFB020\"/><path d=\"M15 1v4M15 25v4M1 15h4M25 15h4M5 5l3 3M22 22l3 3M25 5l-3 3M8 22l-3 3\" stroke=\"#FFBE41\" stroke-width=\"2\"/></svg><strong>8°</strong><small>Example city</small></button></div>",
+      "css": ".ds-own-weather{display:flex;width:320px;height:44px;background:#202020;color:#F5F5F5;font-family:\"Segoe UI\",sans-serif}.ds-own-date{position:relative;width:160px;height:44px}.ds-own-calendar{position:absolute;left:12px;top:9px;color:#C42B36;font-size:25px}.ds-own-date strong{position:absolute;left:46px;top:6px;font:600 14px \"Segoe UI Semibold\",\"Segoe UI\",sans-serif}.ds-own-date small{position:absolute;left:46px;top:22px;font-size:12px;color:#BDBDBD}.ds-own-current{position:relative;width:160px;height:44px;padding:0;border:0;border-left:1px solid #444;background:transparent;color:#F5F5F5;text-align:left;cursor:pointer}.ds-own-current svg{position:absolute;left:19px;top:9px;width:30px;height:30px}.ds-own-current strong{position:absolute;left:58px;top:6px;font:600 14px \"Segoe UI Semibold\",\"Segoe UI\",sans-serif}.ds-own-current small{position:absolute;left:58px;top:22px;color:#BDBDBD;font-size:12px}.ds-own-current:hover{background:rgba(245,245,245,.086)}.ds-own-current:focus-visible{outline:1px dotted #F5F5F5;outline-offset:-3px}.ds-own-current:active{background:#383838}.ds-own-date>svg{position:absolute;left:0;top:0;width:40px;height:44px}"
     }
   ],
   "narrative": {
@@ -501,7 +645,7 @@
     "keyCharacteristics": [
       "Calendar left, meetings right, within the retained 688 × 380 logical-pixel shell.",
       "Event time, two-line title, local source color, conflict label and a separate Meet action.",
-      "Calendar, settings, all three preference tabs and OAuth editing reuse one native tool window.",
+      "Calendar, settings, compact tabbed preferences and OAuth editing reuse one native tool window.",
       "Current/next meeting, seven-day agenda and consistent privacy masks across visible and accessible surfaces.",
       "Local snooze, three sounds, volume/mute, quiet hours and pulse strength preserve read-only Google behavior."
     ],
