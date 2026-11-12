@@ -17,6 +17,17 @@ namespace WinCalendar
         public string End { get; set; }
         public string CalendarId { get; set; }
         public string CalendarName { get; set; }
+        public string CalendarTimeZone { get; set; }
+        public List<int> PopupReminderMinutes { get; set; }
+
+        internal DateTimeOffset ReminderStart
+        {
+            get { return AllDay ? Boundary(Date(Start), CalendarTimeZones.Resolve(CalendarTimeZone)) : Timestamp(Start); }
+        }
+        internal DateTimeOffset ReminderEnd
+        {
+            get { return AllDay ? Boundary(Date(End), CalendarTimeZones.Resolve(CalendarTimeZone)) : Timestamp(End); }
+        }
 
         internal bool OccursOn(DateTime date, TimeZoneInfo zone)
         {
@@ -51,10 +62,12 @@ namespace WinCalendar
     {
         internal readonly List<CalendarEvent> Events = new List<CalendarEvent>();
         internal string NextPage;
-        internal static CalendarPage Parse(string json)
+        internal static CalendarPage Parse(string json, List<int> fallbackReminders = null)
         {
             Dictionary<string, object> root = Json.Object(json);
             CalendarPage page = new CalendarPage { NextPage = Json.Text(root, "nextPageToken") };
+            object defaults;
+            List<int> defaultMinutes = root.TryGetValue("defaultReminders", out defaults) ? GoogleReminderRules.PopupMinutes(defaults) : fallbackReminders ?? new List<int>();
             object items;
             if (!root.TryGetValue("items", out items)) return page;
             foreach (object item in (IEnumerable)items)
@@ -75,8 +88,13 @@ namespace WinCalendar
                 catch (FormatException) { continue; }
                 catch (ArgumentNullException) { continue; }
                 string title = Json.Text(data, "summary");
+                object rawReminders;
+                Dictionary<string, object> reminders = data.TryGetValue("reminders", out rawReminders) ? rawReminders as Dictionary<string, object> : null;
+                object useDefault, overrides;
+                bool custom = reminders != null && reminders.TryGetValue("useDefault", out useDefault) && Object.Equals(useDefault, false);
+                List<int> minutes = custom ? (reminders.TryGetValue("overrides", out overrides) ? GoogleReminderRules.PopupMinutes(overrides) : new List<int>()) : new List<int>(defaultMinutes);
                 page.Events.Add(new CalendarEvent { Id = Json.Text(data, "id"), Title = String.IsNullOrWhiteSpace(title) ? "Без названия" : title,
-                    Url = SafeGoogleLink(Json.Text(data, "htmlLink")), AllDay = allDay, Start = from, End = to });
+                    Url = SafeGoogleLink(Json.Text(data, "htmlLink")), AllDay = allDay, Start = from, End = to, PopupReminderMinutes = minutes });
             }
             return page;
         }

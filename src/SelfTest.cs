@@ -56,6 +56,7 @@ namespace WinCalendar
                 TestDateOnlyHost(directory);
                 TestCalendar(directory);
                 await GoogleSelfTest.RunAsync(directory, Check);
+                await ReminderSelfTest.RunAsync(directory, Check);
                 Results.Add("PASS all checks; popup uses a tool window, background startup stays hidden.");
             }
             catch (Exception error)
@@ -211,7 +212,7 @@ namespace WinCalendar
                 Rectangle work = Screen.PrimaryScreen.WorkingArea;
                 Point anchor = new Point(work.Right - 100, work.Bottom + 8);
                 popup.ShowAt(anchor, work); Pump();
-                Check(popup.Visible, "Calendar opens in native dropdown");
+                Check(popup.Visible, "Calendar opens in one native flyout");
                 long style = GetWindowLongPtr(popup.Handle, -20).ToInt64();
                 Check((style & 0x80) != 0 && (style & 0x40000) == 0, "Calendar popup is a tool window without an app taskbar button");
                 Check(popup.Panel.Controls.OfType<CalendarDayButton>().Count() == 42, "Calendar renders 42 date buttons");
@@ -235,7 +236,7 @@ namespace WinCalendar
                 foreach (bool dark in new[] { false, true })
                 {
                     popup.Panel.SetDpi(dpi);
-                    popup.Panel.ApplyTheme(dark); popup.Panel.Refresh(); Pump();
+                    popup.ViewWindow.ClientSize = popup.Panel.NaturalSize; popup.Panel.ApplyTheme(dark); popup.Panel.Refresh(); Pump();
                     using (Bitmap image = new Bitmap(popup.Panel.Width, popup.Panel.Height))
                     {
                         popup.Panel.DrawToBitmap(image, popup.Panel.ClientRectangle);
@@ -244,7 +245,7 @@ namespace WinCalendar
                     Check(popup.Panel.Controls.Cast<Control>().All(c => popup.Panel.ClientRectangle.Contains(c.Bounds)), "Calendar controls fit in " + (dark ? "dark" : "light") + " theme at " + dpi + " DPI");
                     Check(popup.Panel.Size == new Size(CalendarPanel.LogicalWidth * dpi / 96, CalendarPanel.LogicalHeight * dpi / 96), "Calendar geometry follows " + dpi + " DPI");
                 }
-                popup.Panel.GoogleButton.PerformClick(); Pump();
+                popup.Panel.ShowSettings(true); popup.Panel.GoogleButton.PerformClick(); Pump();
                 Check(googleOpens == 1 && !popup.Visible, "Google Calendar button opens browser action and closes popup");
                 popup.Toggle(anchor); Pump();
                 Check(popup.Visible, "Calendar can reopen after dismissal");

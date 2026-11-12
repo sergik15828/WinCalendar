@@ -8,37 +8,66 @@ using System.Windows.Forms;
 
 namespace WinCalendar
 {
+    // Calendar, settings and client editor share one toolwindow. No modal loops
+    // or nested native dropdowns compete for activation or taskbar ownership.
     internal sealed class CalendarPopup : IDisposable
     {
         private readonly Func<DateTime> clock;
-        private readonly ToolStripControlHost host;
-        private readonly CalendarDropDown dropDown;
+        private readonly CalendarFlyout window;
+        private readonly GoogleClientEditor editor;
         private readonly GoogleCalendarClient google;
         private readonly CalendarSync sync;
-        private readonly System.Windows.Forms.Timer refreshTimer;
-        private CancellationTokenSource login;
-        private GoogleSetupDialog setupDialog;
+        private readonly bool shell;
+        private readonly System.Windows.Forms.Timer refreshTimer, closeTimer;
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
-        private bool disposed, disconnecting, configuring;
+        private CancellationTokenSource login;
+        private ReminderCoordinator reminders;
         private Rectangle anchorArea;
-        private DateTime dismissedAtAnchor = DateTime.MinValue;
+        private DateTime closedAtPin = DateTime.MinValue;
+        private bool disposed, disconnecting, configuring, editorVisible, loginAfterSave;
+        internal event EventHandler ExitRequested;
         internal CalendarPanel Panel { get; private set; }
-        internal bool Visible { get { return dropDown.Visible; } }
-        internal IntPtr Handle { get { return dropDown.Handle; } }
-        internal Rectangle Bounds { get { return dropDown.Bounds; } }
-        internal GoogleSetupDialog ActiveGoogleSetup { get { return setupDialog; } }
+        internal bool Visible { get { return window.Visible; } }
+        internal IntPtr Handle { get { return window.Handle; } }
+        internal Rectangle Bounds { get { return window.Bounds; } }
+        internal GoogleClientEditor Editor { get { return editor; } }
+        internal bool EditorVisible { get { return editorVisible; } }
+        internal Form ViewWindow { get { return window; } }
 
         internal CalendarPopup(Func<DateTime> now, Action openGoogle, bool connectGoogle = false, GoogleCalendarClient client = null)
         {
-            clock = now;
+            clock = now; shell = connectGoogle;
             Panel = new CalendarPanel(now());
-            host = new ToolStripControlHost(Panel) { AutoSize = false, Size = Panel.Size, Margin = Padding.Empty, Padding = Padding.Empty };
-            dropDown = new CalendarDropDown { AutoClose = true, Padding = Padding.Empty, Margin = Padding.Empty, DropShadowEnabled = true };
-            dropDown.Items.Add(host);
+            editor = new GoogleClientEditor { Dock = DockStyle.Fill, Visible = false };
+            window = new CalendarFlyout { Text = "WinCalendar", StartPosition = FormStartPosition.Manual, ClientSize = Panel.Size };
+            Panel.Dock = DockStyle.Fill;
+            window.Controls.Add(Panel); window.Controls.Add(editor);
             Panel.GoogleRequested += delegate { Hide(); openGoogle(); };
             Panel.EventRequested += delegate(string url) { Hide(); Program.OpenCalendarEvent(url); };
             Panel.DismissRequested += delegate { Hide(); };
+            Panel.ConfigureRequested += delegate { ConfigureGoogle(); };
+            Panel.PreviewRequested += delegate { Hide(); if (reminders != null) reminders.Preview(); };
+            Panel.ExitRequested += delegate { if (ExitRequested != null) ExitRequested(this, EventArgs.Empty); };
+            Panel.StartupRequested += delegate(bool enabled) { if (shell) ShellIntegration.StartsWithWindows = enabled; };
+            Panel.SettingsOpened += delegate { if (shell) Panel.SetStartup(ShellIntegration.StartsWithWindows); };
+            editor.CancelRequested += delegate { ShowCalendarSettings(); };
+            editor.SaveRequested += async delegate { await SaveClientAsync(); };
             refreshTimer = new System.Windows.Forms.Timer { Interval = 120000 };
+            closeTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+            closeTimer.Tick += delegate { closeTimer.Stop(); closedAtPin = DateTime.UtcNow; Hide(); };
+            window.DismissRequested += delegate { Hide(); };
+            window.Deactivate += delegate
+            {
+                if (!window.Visible) return;
+                // Let a taskbar launch close the still-visible flyout itself;
+                // this avoids a hide/reopen race between Explorer and this app.
+                if (anchorArea.Contains(Cursor.Position) && (Control.MouseButtons & MouseButtons.Left) != 0) closeTimer.Start();
+                else Hide();
+            };
+            window.VisibleChanged += delegate
+            {
+                if (window.Visible) refreshTimer.Start(); else { refreshTimer.Stop(); closeTimer.Stop(); }
+            };
             if (connectGoogle || client != null)
             {
                 try
@@ -49,66 +78,70 @@ namespace WinCalendar
                 }
                 catch (Exception) { Panel.SetData(new CalendarViewData { Message = "Хранилище Windows недоступно. Повторите запуск приложения." }); }
                 Panel.RangeChanged += async delegate { await RefreshEventsAsync(false); };
-                Panel.RefreshRequested += async delegate { await RefreshEventsAsync(true); };
+                Panel.RefreshRequested += async delegate { await RefreshEventsAsync(true); if (reminders != null) await reminders.RefreshAsync(true); };
                 Panel.ConnectRequested += async delegate { await ConnectAsync(); };
                 Panel.DisconnectRequested += async delegate { await DisconnectAsync(); };
                 refreshTimer.Tick += async delegate { await RefreshEventsAsync(false); };
             }
-            dropDown.Closed += delegate(object sender, ToolStripDropDownClosedEventArgs args)
-            {
-                refreshTimer.Stop();
-                if ((args.CloseReason == ToolStripDropDownCloseReason.AppClicked || args.CloseReason == ToolStripDropDownCloseReason.AppFocusChange)
-                    && anchorArea.Contains(Cursor.Position)) dismissedAtAnchor = DateTime.UtcNow;
-            };
+        }
+
+        internal void StartBackgroundServices()
+        {
+            if (!shell || google == null || reminders != null || disposed) return;
+            reminders = new ReminderCoordinator(google, lifetime.Token);
+            reminders.Start();
         }
 
         internal void Toggle(Point anchor)
         {
-            if (RevealGoogleSetup()) return;
+            if (reminders != null) reminders.Acknowledge();
             if (Visible) { Hide(); return; }
-            // Taskbar click closes the native popup before the launcher forwards
-            // its command. Treat that same click as close rather than reopening.
-            if ((DateTime.UtcNow - dismissedAtAnchor).TotalMilliseconds < 1500)
-            {
-                dismissedAtAnchor = DateTime.MinValue; return;
-            }
+            if ((DateTime.UtcNow - closedAtPin).TotalMilliseconds < 800) { closedAtPin = DateTime.MinValue; return; }
             ShowAt(anchor, Screen.FromPoint(anchor).WorkingArea);
         }
 
         internal async void ShowAt(Point anchor, Rectangle work)
         {
-            dropDown.Location = anchor;
-            Panel.SetDpi((int)GetDpiForWindow(dropDown.Handle));
-            Panel.Reset(clock());
-            anchorArea = new Rectangle(anchor.X - 28, anchor.Y - 28, 56, 56);
+            if (disposed) return;
+            closeTimer.Stop();
+            Rectangle pin = shell ? TaskbarAnchor.Current : Rectangle.Empty;
+            if (!pin.IsEmpty) { anchor = new Point(pin.Left + pin.Width / 2, pin.Top + pin.Height / 2); work = Screen.FromRectangle(pin).WorkingArea; }
+            anchorArea = pin.IsEmpty ? new Rectangle(anchor.X - 28, anchor.Y - 28, 56, 56) : pin;
+            window.Location = anchor;
+            int dpi = (int)GetDpiForWindow(window.Handle);
+            Panel.SetDpi(dpi); editor.SetDpi(dpi);
+            if (!editorVisible) Panel.Reset(clock());
             Rectangle bounds = Place(Panel.NaturalSize, anchor, work);
-            host.Size = bounds.Size;
-            Panel.Size = bounds.Size;
-            dropDown.BackColor = Panel.BackColor;
-            dropDown.Show(bounds.Location);
-            Panel.FocusSelectedDay();
-            refreshTimer.Start();
+            window.Bounds = bounds;
+            if (!window.Visible) window.Show();
+            window.Reveal();
+            if (editorVisible) editor.Select(); else Panel.FocusSelectedDay();
             if (sync != null && login == null && !disconnecting) await RefreshEventsAsync(false);
         }
 
         internal static Rectangle Place(Size requested, Point anchor, Rectangle work)
         {
-            int width = Math.Min(requested.Width, work.Width);
-            int height = Math.Min(requested.Height, work.Height);
-            int x = anchor.X - width / 2, y = anchor.Y - height - 10;
+            int width = Math.Min(requested.Width, work.Width), height = Math.Min(requested.Height, work.Height);
+            int x = anchor.X - Math.Min(width / 2, requested.Width / 4), y = anchor.Y - height - 10;
+            if (anchor.Y >= work.Bottom) y = work.Bottom - height - 8;
             if (anchor.Y <= work.Top) y = work.Top + 10;
             if (anchor.X <= work.Left || anchor.X >= work.Right)
-            {
-                x = anchor.X <= work.Left ? work.Left + 10 : work.Right - width - 10;
-                y = anchor.Y - height / 2;
-            }
-            x = Math.Max(work.Left, Math.Min(x, work.Right - width));
-            y = Math.Max(work.Top, Math.Min(y, work.Bottom - height));
-            return new Rectangle(x, y, width, height);
+            { x = anchor.X <= work.Left ? work.Left + 10 : work.Right - width - 10; y = anchor.Y - height / 2; }
+            return new Rectangle(Math.Max(work.Left, Math.Min(x, work.Right - width)), Math.Max(work.Top, Math.Min(y, work.Bottom - height)), width, height);
         }
 
         internal void UpdateToday(DateTime today) { Panel.UpdateToday(today); }
-        internal void Hide() { dropDown.Close(ToolStripDropDownCloseReason.CloseCalled); }
+        internal void Hide() { closeTimer.Stop(); window.Hide(); }
+
+        internal void ShowCalendarSettings()
+        {
+            editorVisible = false; editor.Visible = false; Panel.Visible = true;
+            if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
+            Panel.ShowSettings(true);
+            if (shell) Panel.SetStartup(ShellIntegration.StartsWithWindows);
+            window.Reveal();
+        }
+
         private async Task RefreshEventsAsync(bool force)
         {
             if (sync == null || disposed || login != null || disconnecting || configuring) return;
@@ -116,116 +149,137 @@ namespace WinCalendar
             await sync.ShowAsync(days[0], days[days.Length - 1].AddDays(1), TimeZoneInfo.Local, force);
         }
 
-        internal async void ConfigureGoogle() { await ConfigureGoogleAsync(); }
+        internal void ConfigureGoogle() { OpenClientEditor(false); }
         internal async void ConnectGoogle() { await ConnectAsync(); }
+        internal void PreviewReminder() { StartBackgroundServices(); Hide(); if (reminders != null) reminders.Preview(); }
 
-        private bool RevealGoogleSetup()
+        private void OpenClientEditor(bool connectAfter)
         {
-            if (setupDialog == null || setupDialog.IsDisposed) return false;
-            Hide(); setupDialog.Reveal(); return true;
+            if (disposed || login != null || disconnecting || configuring) return;
+            if (google == null) { ShowCalendarSettings(); return; }
+            if (!editorVisible) { editor.BeginEdit(google.ConfiguredClientId); loginAfterSave = connectAfter; }
+            editorVisible = true;
+            if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
+            Panel.Visible = false; editor.Visible = true; editor.BringToFront();
+            window.Reveal(); editor.Select();
         }
 
-        private async Task<bool> ConfigureGoogleAsync()
+        private async Task SaveClientAsync()
         {
-            if (RevealGoogleSetup()) return false;
-            if (google == null || login != null || disconnecting || configuring || disposed) return false;
-            Hide(); sync.Cancel(); configuring = true;
+            if (google == null || configuring || disposed) return;
+            configuring = true; editor.SetBusy(true); sync.Cancel();
+            if (reminders != null) reminders.Pause();
             try
             {
-                using (GoogleSetupDialog dialog = new GoogleSetupDialog())
-                {
-                    setupDialog = dialog;
-                    // Leave the dropdown's click/close dispatch before starting
-                    // a modal loop, so it cannot deactivate the new dialog.
-                    await Task.Yield();
-                    if (disposed) return false;
-                    if (dialog.ShowDialog() != DialogResult.OK) return false;
-                    try { await google.ConfigureAsync(dialog.ClientId, dialog.ClientSecret, lifetime.Token); if (!disposed) sync.Clear(); return !disposed; }
-                    catch (Exception error)
-                    {
-                        GoogleFailure failure = error as GoogleFailure;
-                        if (!disposed) MessageBox.Show(failure == null ? "Не удалось сохранить подключение в хранилище Windows." : failure.Message, "WinCalendar");
-                        return false;
-                    }
-                }
+                await google.ConfigureAsync(editor.ClientId, editor.ClientSecret, lifetime.Token);
+                if (disposed) return;
+                sync.Clear(); editor.Clear();
+                if (reminders != null) reminders.ResetAccount();
+                ShowCalendarSettings();
             }
-            finally { setupDialog = null; configuring = false; }
+            catch (Exception error)
+            {
+                GoogleFailure failure = error as GoogleFailure;
+                if (!disposed) editor.ShowError(failure == null ? "Не удалось сохранить данные в хранилище Windows." : failure.Message);
+                return;
+            }
+            finally { configuring = false; if (!disposed) editor.SetBusy(false); }
+            if (!disposed && loginAfterSave) { loginAfterSave = false; await ConnectAsync(); }
+            else if (!disposed && google.Connected) { await RefreshEventsAsync(true); if (reminders != null) await reminders.RefreshAsync(true); }
         }
 
         private async Task ConnectAsync()
         {
-            if (RevealGoogleSetup()) return;
             if (google == null || disposed || disconnecting || configuring) return;
+            if (editorVisible) { if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea); window.Reveal(); return; }
             if (login != null) { login.Cancel(); return; }
-            if (!google.Configured) await ConfigureGoogleAsync();
-            if (disposed || !google.Configured) return;
+            if (!google.Configured) { OpenClientEditor(true); return; }
             Hide(); sync.Cancel();
+            if (reminders != null) reminders.Pause();
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); login = cancellation;
             Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = "Завершите вход в открывшемся браузере." });
             try
             {
                 await google.ConnectAsync(cancellation.Token);
-                if (!disposed) sync.Clear();
+                if (!disposed) { sync.Clear(); if (reminders != null) { reminders.ResetAccount(); await reminders.RefreshAsync(true); } }
             }
             catch (OperationCanceledException)
             {
-                if (!disposed) Panel.SetData(new CalendarViewData { Connection = google.Connected ? CalendarConnection.Connected : CalendarConnection.Disconnected, Message = "Вход отменён или истекло время ожидания. Можно повторить." });
+                if (!disposed) Panel.SetData(new CalendarViewData { Connection = google.Connected ? CalendarConnection.Connected : CalendarConnection.Disconnected, Message = "Вход отменён. Можно повторить." });
             }
             catch (Exception error)
             {
                 GoogleFailure failure = error as GoogleFailure;
                 if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin,
-                    Message = failure == null ? "Не удалось войти в Google. Проверьте сеть и настройки клиента." : failure.Message });
+                    Message = failure == null ? "Не удалось войти в Google. Проверьте сеть и настройки." : failure.Message });
             }
-            finally
-            {
-                login = null; cancellation.Dispose();
-            }
-            if (!disposed && google.Connected) await RefreshEventsAsync(true);
+            finally { login = null; cancellation.Dispose(); }
+            if (!disposed && google.Connected)
+            { await RefreshEventsAsync(true); if (reminders != null) await reminders.RefreshAsync(true); }
         }
 
         private async Task DisconnectAsync()
         {
             if (google == null || disposed || disconnecting || login != null) return;
             disconnecting = true; sync.Clear();
+            if (reminders != null) reminders.ResetAccount();
             Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = "Отключаем Google…" });
             try
             {
                 bool revoked = await google.DisconnectAsync(lifetime.Token);
-                if (!disposed)
-                {
-                    sync.Clear();
-                    if (!revoked) Panel.SetData(new CalendarViewData { Message = "Локальный доступ удалён. Отзыв в Google не выполнен: нет связи." });
-                }
+                if (!disposed) { sync.Clear(); if (reminders != null) reminders.ResetAccount(); if (!revoked) Panel.SetData(new CalendarViewData { Message = "Локальный доступ удалён. Отзыв в Google не выполнен: нет связи." }); }
             }
-            catch (Exception) { if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin, Message = "Не удалось удалить доступ из хранилища Windows. Повторите отключение." }); }
+            catch (Exception) { if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin, Message = "Не удалось удалить доступ. Повторите отключение." }); }
             finally { disconnecting = false; }
         }
 
         public void Dispose()
         {
+            if (disposed) return;
             disposed = true; lifetime.Cancel();
-            if (setupDialog != null && !setupDialog.IsDisposed) setupDialog.Close();
+            if (reminders != null) reminders.Dispose();
             if (sync != null) sync.Dispose();
-            refreshTimer.Dispose(); dropDown.Dispose();
-            if (google != null) google.Dispose();
-            lifetime.Dispose();
+            refreshTimer.Dispose(); closeTimer.Dispose(); window.Dispose();
+            if (google != null) google.Dispose(); lifetime.Dispose();
         }
 
-        [DllImport("user32.dll")]
-        private static extern uint GetDpiForWindow(IntPtr window);
+        [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr window);
 
-        private sealed class CalendarDropDown : ToolStripDropDown
+        private sealed class CalendarFlyout : Form
         {
+            internal event EventHandler DismissRequested;
+            internal CalendarFlyout()
+            {
+                AutoScaleMode = AutoScaleMode.None; FormBorderStyle = FormBorderStyle.None;
+                ShowInTaskbar = false; MaximizeBox = MinimizeBox = false;
+            }
             protected override CreateParams CreateParams
             {
-                get
-                {
-                    CreateParams parameters = base.CreateParams;
-                    parameters.ExStyle = (parameters.ExStyle | 0x80) & ~0x40000;
-                    return parameters;
-                }
+                get { CreateParams value = base.CreateParams; value.ExStyle = (value.ExStyle | 0x80) & ~0x40000; value.ClassStyle |= 0x20000; return value; }
             }
+            protected override void OnHandleCreated(EventArgs args)
+            {
+                base.OnHandleCreated(args);
+                SetProp(Handle, "WinCalendar.Flyout", new IntPtr(System.Diagnostics.Process.GetCurrentProcess().Id));
+                int rounded = 2; DwmSetWindowAttribute(Handle, 33, ref rounded, sizeof(int));
+            }
+            protected override void OnHandleDestroyed(EventArgs args)
+            { RemoveProp(Handle, "WinCalendar.Flyout"); base.OnHandleDestroyed(args); }
+            internal void Reveal() { BringToFront(); Activate(); SetForegroundWindow(Handle); }
+            protected override bool ProcessCmdKey(ref Message message, Keys keys)
+            {
+                if (keys == Keys.Escape) { if (DismissRequested != null) DismissRequested(this, EventArgs.Empty); return true; }
+                return base.ProcessCmdKey(ref message, keys);
+            }
+            protected override void OnFormClosing(FormClosingEventArgs args)
+            {
+                if (args.CloseReason == CloseReason.UserClosing) { args.Cancel = true; Hide(); return; }
+                base.OnFormClosing(args);
+            }
+            [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr window);
+            [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool SetProp(IntPtr window, string name, IntPtr value);
+            [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool RemoveProp(IntPtr window, string name);
+            [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
         }
     }
 }

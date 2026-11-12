@@ -19,6 +19,7 @@ namespace WinCalendar
         internal const int OpenCalendarCommand = 5;
         internal const int GoogleSetupCommand = 6;
         internal const int GoogleConnectCommand = 7;
+        internal const int PreviewReminderCommand = 8;
         internal const string GoogleCalendarUrl = "https://calendar.google.com/calendar/";
 
         [STAThread]
@@ -57,10 +58,12 @@ namespace WinCalendar
                         DateTaskbarWindow window = new DateTaskbarWindow(true, delegate { return DateTime.Now; });
                         window.Shown += delegate
                         {
+                            window.StartBackgroundServices();
                             if (command == OpenCalendarCommand) window.BeginInvoke(new Action(window.ToggleCalendar));
                             else if (command == MenuCommand) PostCommand(MenuCommand, Process.GetCurrentProcess().Id);
                             else if (command == GoogleSetupCommand) PostCommand(GoogleSetupCommand, Process.GetCurrentProcess().Id);
                             else if (command == GoogleConnectCommand) PostCommand(GoogleConnectCommand, Process.GetCurrentProcess().Id);
+                            else if (command == PreviewReminderCommand) PostCommand(PreviewReminderCommand, Process.GetCurrentProcess().Id);
                         };
                         Application.Run(window);
                     }
@@ -85,6 +88,7 @@ namespace WinCalendar
             if (argument == "--menu") return MenuCommand;
             if (argument == "--google-setup") return GoogleSetupCommand;
             if (argument == "--google-connect") return GoogleConnectCommand;
+            if (argument == "--preview-reminder") return PreviewReminderCommand;
             return -1;
         }
 

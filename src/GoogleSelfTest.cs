@@ -98,7 +98,7 @@ namespace WinCalendar
             {
                 List<CalendarEvent> events = await client.LoadAsync(new DateTime(2026, 10, 26), new DateTime(2026, 12, 7), zone, CancellationToken.None);
                 check(events.Count == 2 && eventRequests == 3 && tokenRequests == 2, "401 refreshes once, then all event pages are loaded");
-                check(client.Connected && client.CacheIdentity == "fixture-account:all-calendars-v1", "Stored session restores with a separate cache namespace for all calendars");
+                check(client.Connected && client.CacheIdentity == "fixture-account:all-calendars-reminders-v2", "Stored session restores with a separate cache namespace for all calendars");
             }
             await TestAdditionalCalendarsAsync(check, zone, directory);
             using (GoogleCalendarClient expired = new GoogleCalendarClient(SessionStore(), new FixtureHandler(delegate { return Task.FromResult(Response(HttpStatusCode.BadRequest, "{\"error\":\"invalid_grant\"}")); })))
@@ -219,78 +219,33 @@ namespace WinCalendar
             {
                 for (int round = 0; round < 2; round++)
                 {
-                    TaskCompletionSource<bool> completed = new TaskCompletionSource<bool>();
-                    using (System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 40 })
-                    {
-                        int attempts = 0;
-                        timer.Tick += delegate
-                        {
-                            GoogleSetupDialog dialog = popup.ActiveGoogleSetup;
-                            if (dialog == null || !dialog.Visible)
-                            {
-                                if (++attempts < 100) return;
-                                timer.Stop(); completed.TrySetException(new InvalidOperationException("Sign-in button did not show the setup dialog")); return;
-                            }
-                            timer.Stop();
-                            Exception failure = null;
-                            try
-                            {
-                                IntPtr original = dialog.Handle;
-                                check(Application.OpenForms.OfType<GoogleSetupDialog>().Count() == 1 && !dialog.ShowInTaskbar,
-                                    "Sign-in opens one setup tool window without a taskbar button, round " + round);
-                                TextBox id = dialog.Controls.OfType<TextBox>().Single(t => !t.UseSystemPasswordChar);
-                                id.Text = "fixture-unsaved.apps.googleusercontent.com";
-                                using (Form cover = new Form { Text = "Synthetic focus test", ShowInTaskbar = false, FormBorderStyle = FormBorderStyle.FixedToolWindow })
-                                {
-                                    cover.Show(); cover.Activate();
-                                    popup.Toggle(new Point(50, 50));
-                                    check(popup.ActiveGoogleSetup.Handle == original && dialog.Visible && !popup.Visible && IsAbove(original, cover.Handle),
-                                        "Taskbar command raises the existing setup above another window, round " + round);
-                                    cover.Activate(); popup.ConfigureGoogle();
-                                    check(popup.ActiveGoogleSetup.Handle == original && Application.OpenForms.OfType<GoogleSetupDialog>().Count() == 1 && IsAbove(original, cover.Handle),
-                                        "Repeated setup command focuses the same dialog without duplicates, round " + round);
-                                    dialog.WindowState = FormWindowState.Minimized; popup.Toggle(new Point(50, 50));
-                                    check(dialog.WindowState == FormWindowState.Normal && dialog.Visible && id.Text == "fixture-unsaved.apps.googleusercontent.com",
-                                        "Taskbar command restores setup and preserves unsaved input, round " + round);
-                                    if (round == 0)
-                                        using (Bitmap bitmap = new Bitmap(dialog.Width, dialog.Height))
-                                        { dialog.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size)); bitmap.Save(Path.Combine(directory, "google-setup-recovered.png"), ImageFormat.Png); }
-                                    cover.Close();
-                                }
-                            }
-                            catch (Exception error) { failure = error; }
-                            finally
-                            {
-                                if (round == 0) dialog.Close(); else ((Button)dialog.CancelButton).PerformClick();
-                            }
-                            if (failure == null) completed.TrySetResult(true); else completed.TrySetException(failure);
-                        };
-                        popup.ShowAt(new Point(50, 50), Screen.PrimaryScreen.WorkingArea);
-                        timer.Start(); popup.Panel.ConnectButton.PerformClick();
-                        // The dropdown callback has yielded but the modal loop
-                        // has not started: another command must not duplicate it.
-                        popup.ConfigureGoogle();
-                        await completed.Task;
-                        await Task.Delay(20);
-                        check(popup.ActiveGoogleSetup == null, "Closing or cancelling setup permits the next sign-in attempt, round " + round);
-                    }
+                    popup.ShowAt(new Point(50, 50), Screen.PrimaryScreen.WorkingArea);
+                    IntPtr original = popup.Handle;
+                    popup.Panel.SettingsButton.PerformClick();
+                    check(popup.Panel.SettingsVisible && popup.Handle == original, "Gear opens settings inside the same flyout, round " + round);
+                    popup.Panel.ConnectButton.PerformClick();
+                    await Task.Delay(20);
+                    check(popup.EditorVisible && popup.Handle == original && popup.Visible, "Sign-in opens client editor without another window or modal loop, round " + round);
+                    TextBox id = popup.Editor.Controls.OfType<TextBox>().Single(t => !t.UseSystemPasswordChar);
+                    id.Text = "fixture-unsaved.apps.googleusercontent.com";
+                    popup.Hide(); popup.Toggle(new Point(50, 50));
+                    check(popup.EditorVisible && popup.Visible && popup.Handle == original && id.Text == "fixture-unsaved.apps.googleusercontent.com",
+                        "Reopening restores the inline editor and preserves unsaved input, round " + round);
+                    check(popup.Editor.Controls.Cast<Control>().All(c => c.Font.GetHeight() > 0), "Reopening at the same DPI retains valid editor fonts, round " + round);
+                    popup.ConfigureGoogle();
+                    check(popup.Handle == original && popup.EditorVisible, "Repeated setup command reuses one flyout, round " + round);
+                    if (round == 0)
+                        using (Bitmap bitmap = new Bitmap(popup.Editor.Width, popup.Editor.Height))
+                        { popup.Editor.DrawToBitmap(bitmap, popup.Editor.ClientRectangle); bitmap.Save(Path.Combine(directory, "google-setup-recovered.png"), ImageFormat.Png); }
+                    popup.Editor.CancelButton.PerformClick();
+                    check(!popup.EditorVisible && popup.Panel.SettingsVisible, "Editor back returns to settings without closing another window, round " + round);
+                    popup.Panel.SettingsButton.PerformClick();
+                    check(!popup.Panel.SettingsVisible, "Settings close returns to calendar, round " + round);
+                    popup.ViewWindow.Close();
+                    check(!popup.Visible && !popup.ViewWindow.IsDisposed, "Closing the flyout keeps its reusable window alive, round " + round);
                 }
             }
         }
-
-        private static bool IsAbove(IntPtr first, IntPtr second)
-        {
-            IntPtr found = IntPtr.Zero;
-            EnumWindows(delegate(IntPtr window, IntPtr ignored)
-            {
-                if (window != first && window != second) return true;
-                found = window; return false;
-            }, IntPtr.Zero);
-            return found == first;
-        }
-
-        private delegate bool WindowCallback(IntPtr window, IntPtr data);
-        [DllImport("user32.dll")] private static extern bool EnumWindows(WindowCallback callback, IntPtr data);
 
         private static void CaptureEvents(string directory, Action<bool, string> check)
         {
@@ -301,10 +256,11 @@ namespace WinCalendar
             events.Add(new CalendarEvent { Id = "fixture2", Title = "Обсуждение макета и следующих шагов проекта — длинное синтетическое название встречи", Url = "https://calendar.google.com/calendar/event?eid=fixture2",
                 Start = CalendarEvent.Boundary(today.AddHours(15), TimeZoneInfo.Local).ToString("o"), End = CalendarEvent.Boundary(today.AddHours(16), TimeZoneInfo.Local).ToString("o") });
             events.Add(new CalendarEvent { Id = "fixture3", Title = "День подготовки — синтетический пример", AllDay = true, Start = "2026-11-12", End = "2026-11-14", Url = "https://calendar.google.com/calendar/event?eid=fixture3" });
-            using (CalendarPopup popup = new CalendarPopup(delegate { return today; }, delegate { }))
+            using (CalendarPopup popup = new CalendarPopup(delegate { return today; }, delegate { }, false,
+                new GoogleCalendarClient(new MemoryCredentials(), new FixtureHandler(delegate { throw new HttpRequestException(); }))))
             {
                 popup.ShowAt(new Point(50, 50), Screen.PrimaryScreen.WorkingArea); Application.DoEvents();
-                CalendarViewData data = new CalendarViewData { Connection = CalendarConnection.Connected, Events = events, HasSnapshot = true, UpdatedUtc = DateTime.UtcNow, Message = "Основной календарь Google" };
+                CalendarViewData data = new CalendarViewData { Connection = CalendarConnection.Connected, Events = events, HasSnapshot = true, UpdatedUtc = DateTime.UtcNow, Message = "Календари Google" };
                 popup.Panel.SetData(data);
                 check(popup.Panel.EventList.Items.Count == 3 && popup.Panel.Controls.OfType<CalendarDayButton>().Count(b => b.HasEvents) == 2, "Selected day's list and calendar dots use the same events");
                 string opened = null;
@@ -319,7 +275,7 @@ namespace WinCalendar
                 foreach (int dpi in new[] { 96, 120, 144 })
                 foreach (bool dark in new[] { false, true })
                 {
-                    popup.Panel.SetDpi(dpi); popup.Panel.ApplyTheme(dark); Application.DoEvents();
+                    popup.Panel.SetDpi(dpi); popup.ViewWindow.ClientSize = popup.Panel.NaturalSize; popup.Panel.ApplyTheme(dark); Application.DoEvents();
                     using (Bitmap bitmap = new Bitmap(popup.Panel.Width, popup.Panel.Height))
                     {
                         popup.Panel.DrawToBitmap(bitmap, popup.Panel.ClientRectangle);
@@ -327,7 +283,7 @@ namespace WinCalendar
                     }
                     check(popup.Panel.Controls.Cast<Control>().All(c => popup.Panel.ClientRectangle.Contains(c.Bounds)), "Events panel controls fit at " + dpi + " DPI in " + (dark ? "dark" : "light"));
                 }
-                popup.Panel.SetDpi(96);
+                popup.Panel.SetDpi(96); popup.ViewWindow.ClientSize = popup.Panel.NaturalSize; Application.DoEvents();
                 popup.Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Connected, Events = events, HasSnapshot = true, UpdatedUtc = DateTime.UtcNow.AddHours(-1), Message = "Нет связи с Google. Показаны сохранённые встречи." });
                 using (Bitmap bitmap = new Bitmap(popup.Panel.Width, popup.Panel.Height))
                 { popup.Panel.DrawToBitmap(bitmap, popup.Panel.ClientRectangle); bitmap.Save(Path.Combine(directory, "google-events-offline.png"), ImageFormat.Png); }
@@ -359,15 +315,29 @@ namespace WinCalendar
                 check(!popup.Panel.Controls.OfType<Label>().Any(label => label.Text.Contains("сохранённые данные")),
                     "A first-load failure without a snapshot does not claim cached data are shown");
                 Capture(popup.Panel, directory, "google-events-initial-error.png");
-                using (GoogleSetupDialog setup = new GoogleSetupDialog())
+                popup.ConfigureGoogle();
+                check(popup.EditorVisible && popup.Editor.Controls.OfType<TextBox>().Any(t => t.UseSystemPasswordChar), "Inline client editor masks its secret field");
+                popup.Editor.SetDpi(120); popup.ViewWindow.ClientSize = new Size(CalendarPanel.LogicalWidth * 120 / 96, CalendarPanel.LogicalHeight * 120 / 96);
+                using (Bitmap bitmap = new Bitmap(popup.Editor.Width, popup.Editor.Height))
+                { popup.Editor.DrawToBitmap(bitmap, popup.Editor.ClientRectangle); bitmap.Save(Path.Combine(directory, "google-setup.png"), ImageFormat.Png); }
+                foreach (int dpi in new[] { 96, 120, 144 })
+                foreach (bool dark in new[] { false, true })
                 {
-                    setup.Show(); Application.DoEvents();
-                    check(!setup.ShowInTaskbar && setup.Controls.OfType<TextBox>().Any(t => t.UseSystemPasswordChar), "Google setup has no taskbar button and masks the secret field");
-                    check(setup.Controls.Cast<Control>().All(c => setup.ClientRectangle.Contains(c.Bounds)), "Google setup controls fit at the actual monitor DPI");
-                    using (Bitmap bitmap = new Bitmap(setup.Width, setup.Height))
-                    { setup.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size)); bitmap.Save(Path.Combine(directory, "google-setup.png"), ImageFormat.Png); }
-                    setup.Close();
+                    popup.Editor.SetDpi(dpi, dark); popup.ViewWindow.ClientSize = new Size(CalendarPanel.LogicalWidth * dpi / 96, CalendarPanel.LogicalHeight * dpi / 96);
+                    check(popup.Editor.Controls.Cast<Control>().All(c => c.Font.GetHeight() > 0), "Changing editor theme retains usable fonts at " + dpi + " DPI");
+                    using (Bitmap bitmap = new Bitmap(popup.Editor.Width, popup.Editor.Height))
+                    { popup.Editor.DrawToBitmap(bitmap, popup.Editor.ClientRectangle); bitmap.Save(Path.Combine(directory, "calendar-client-" + (dark ? "dark" : "light") + "-" + dpi + ".png"), ImageFormat.Png); }
+                    check(popup.Editor.Controls.Cast<Control>().All(c => popup.Editor.ClientRectangle.Contains(c.Bounds)), "Inline client editor fits at " + dpi + " DPI");
                 }
+                popup.ShowCalendarSettings();
+                foreach (int dpi in new[] { 96, 120, 144 })
+                foreach (bool dark in new[] { false, true })
+                {
+                    popup.Panel.SetDpi(dpi); popup.ViewWindow.ClientSize = popup.Panel.NaturalSize; popup.Panel.ApplyTheme(dark); popup.Panel.ShowSettings(true);
+                    Capture(popup.Panel, directory, "calendar-settings-" + (dark ? "dark" : "light") + "-" + dpi + ".png");
+                    check(CalendarPanel.Descendants(popup.Panel).All(c => c.Parent.ClientRectangle.Contains(c.Bounds)), "Settings controls fit at " + dpi + " DPI");
+                }
+
             }
         }
 

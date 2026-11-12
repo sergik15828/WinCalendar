@@ -28,7 +28,11 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Read calendar-list and event pagination, keep event IDs distinct per source calendar, and invalidate the former primary-only cache. A missing permission or failed refresh must not be presented as a verified empty day.
 - Render loading, empty, offline with cached events and update time, and renewed-sign-in states. Refresh asynchronously; stale month or account responses cannot replace the current view.
 - Escape, outside click, or another icon click closes the panel. Its native tool-window style must not add a running-app indicator.
-- Startup and Exit remain available through Settings.cmd and the Start menu settings shortcut.
+- The 688×380 logical panel places the month grid on the left and selected-day meetings on the right. Separate event cards show time, a two-line title and source calendar; long agendas scroll.
+- A top-right gear opens connection state, refresh, account actions, Google Calendar, reminder preview, startup and exit in the same native window. No bottom status strip. Settings.cmd and the Start menu settings shortcut open this same page.
+- Google client fields are another page of the same reusable tool window. No nested modal dialogs; repeated setup reveals the existing editor and preserves unsaved input when hidden.
+- Read the event's popup reminder overrides or calendar defaults; disabled and email-only reminders do not animate. A subtle 1.8-second accent over the pinned icon persists until icon activation, with encrypted pending state across restarts. It must not steal focus, rewrite the icon cache or add a running-app indicator. Windows reduced motion and high contrast use a static accent.
+- Reminder synchronization runs every two minutes independently of the month the user browses. All-day reminder times follow the source calendar's time zone. Reminder state and snapshots use current-user DPAPI.
 - Background startup must never open the calendar panel or browser.
 - Date and month grid work offline without an account. Google data requires a network connection for refresh; retained snapshots remain available offline. No event editing or invitations.
 - Full exit stops date updates; startup is an explicit user choice.

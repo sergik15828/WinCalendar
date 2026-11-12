@@ -1,0 +1,479 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T12:17:29.808733+00:00",
+  "title": "Design System: WinCalendar",
+  "extensions": {
+    "colorMeta": {
+      "weekday-strip": {
+        "role": "primary",
+        "displayName": "Accent Light",
+        "tonalRamp": [
+          "oklch(15% 0.0480 22.94)",
+          "oklch(25% 0.0960 22.94)",
+          "oklch(35% 0.1360 22.94)",
+          "oklch(47% 0.1600 22.94)",
+          "oklch(60% 0.1600 22.94)",
+          "oklch(73% 0.1280 22.94)",
+          "oklch(85% 0.0720 22.94)",
+          "oklch(95% 0.0240 22.94)"
+        ]
+      },
+      "weekday-text": {
+        "role": "neutral",
+        "displayName": "On Accent Light",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Icon Paper",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "day-text": {
+        "role": "neutral",
+        "displayName": "Icon Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0018 285.89)",
+          "oklch(25% 0.0035 285.89)",
+          "oklch(35% 0.0050 285.89)",
+          "oklch(47% 0.0059 285.89)",
+          "oklch(60% 0.0059 285.89)",
+          "oklch(73% 0.0047 285.89)",
+          "oklch(85% 0.0026 285.89)",
+          "oklch(95% 0.0009 285.89)"
+        ]
+      },
+      "icon-border": {
+        "role": "neutral",
+        "displayName": "Icon Border",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-light-surface": {
+        "role": "neutral",
+        "displayName": "Calendar Light Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-light-event-surface": {
+        "role": "neutral",
+        "displayName": "Calendar Light Event Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-light-ink": {
+        "role": "neutral",
+        "displayName": "Calendar Light Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-light-secondary": {
+        "role": "neutral",
+        "displayName": "Calendar Light Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-light-adjacent": {
+        "role": "neutral",
+        "displayName": "Calendar Light Adjacent",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-light-hover": {
+        "role": "neutral",
+        "displayName": "Calendar Light Hover",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-light-weekend": {
+        "role": "primary",
+        "displayName": "Calendar Light Weekend",
+        "tonalRamp": [
+          "oklch(15% 0.0504 21.62)",
+          "oklch(25% 0.1008 21.62)",
+          "oklch(35% 0.1428 21.62)",
+          "oklch(47% 0.1680 21.62)",
+          "oklch(60% 0.1680 21.62)",
+          "oklch(73% 0.1344 21.62)",
+          "oklch(85% 0.0756 21.62)",
+          "oklch(95% 0.0252 21.62)"
+        ]
+      },
+      "calendar-light-rule": {
+        "role": "neutral",
+        "displayName": "Calendar Light Rule",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-dark-surface": {
+        "role": "neutral",
+        "displayName": "Calendar Dark Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-dark-event-surface": {
+        "role": "neutral",
+        "displayName": "Calendar Dark Event Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-dark-ink": {
+        "role": "neutral",
+        "displayName": "Calendar Dark Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-dark-secondary": {
+        "role": "neutral",
+        "displayName": "Calendar Dark Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-dark-adjacent": {
+        "role": "neutral",
+        "displayName": "Calendar Dark Adjacent",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-dark-accent": {
+        "role": "primary",
+        "displayName": "Calendar Dark Accent",
+        "tonalRamp": [
+          "oklch(15% 0.0421 17.67)",
+          "oklch(25% 0.0843 17.67)",
+          "oklch(35% 0.1194 17.67)",
+          "oklch(47% 0.1405 17.67)",
+          "oklch(60% 0.1405 17.67)",
+          "oklch(73% 0.1124 17.67)",
+          "oklch(85% 0.0632 17.67)",
+          "oklch(95% 0.0211 17.67)"
+        ]
+      },
+      "calendar-dark-hover": {
+        "role": "neutral",
+        "displayName": "Calendar Dark Hover",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "calendar-dark-weekend": {
+        "role": "primary",
+        "displayName": "Calendar Dark Weekend",
+        "tonalRamp": [
+          "oklch(15% 0.0256 14.50)",
+          "oklch(25% 0.0511 14.50)",
+          "oklch(35% 0.0724 14.50)",
+          "oklch(47% 0.0852 14.50)",
+          "oklch(60% 0.0852 14.50)",
+          "oklch(73% 0.0682 14.50)",
+          "oklch(85% 0.0383 14.50)",
+          "oklch(95% 0.0128 14.50)"
+        ]
+      },
+      "calendar-dark-rule": {
+        "role": "neutral",
+        "displayName": "Calendar Dark Rule",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(25% 0.0000 0.00)",
+          "oklch(35% 0.0000 0.00)",
+          "oklch(47% 0.0000 0.00)",
+          "oklch(60% 0.0000 0.00)",
+          "oklch(73% 0.0000 0.00)",
+          "oklch(85% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "icon-weekday": {
+        "displayName": "Icon Weekday",
+        "purpose": "Two-letter Russian weekday fitted to a 20px contour-ink height on the 64-unit icon."
+      },
+      "icon-day": {
+        "displayName": "Icon Day",
+        "purpose": "Day numeral fitted to a 30px contour-ink height on the 64-unit icon."
+      },
+      "calendar-heading": {
+        "displayName": "Calendar Heading",
+        "purpose": "Today, settings or inline client-editor page heading."
+      },
+      "calendar-month": {
+        "displayName": "Month and Agenda",
+        "purpose": "Displayed month and the right-pane meeting heading."
+      },
+      "calendar-body": {
+        "displayName": "Calendar Body",
+        "purpose": "Day numerals, settings actions and editor fields."
+      },
+      "calendar-weekday": {
+        "displayName": "Calendar Labels",
+        "purpose": "Weekday, selected date and status labels."
+      },
+      "calendar-event-title": {
+        "displayName": "Event Title",
+        "purpose": "Bold title in a two-line meeting card."
+      },
+      "calendar-event-detail": {
+        "displayName": "Event Detail",
+        "purpose": "Accent time and secondary source-calendar metadata."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "reminder-breathe",
+        "value": "1800ms cosine cycle",
+        "purpose": "Persistent badge/outline until acknowledgement; static with Windows reduced motion or High Contrast."
+      }
+    ],
+    "breakpoints": [],
+    "native": {
+      "platform": "Windows 11",
+      "host": "One reusable borderless Windows Forms tool window for calendar, settings and OAuth editing; no app-window taskbar button.",
+      "interaction": "Pinned date toggles the flyout and acknowledges pending reminders. Gear opens inline settings. Background startup remains hidden.",
+      "identity": "Incumbent red/white weekday/day icon and native executable identity; no explicit AppUserModelID.",
+      "elevation": "Windows native shadow and requested DWM rounded corners; event cards have borders and no shadows.",
+      "dpi": "688 × 380 logical pixels; actual window DPI scales bounds, fonts and painting; constrained work areas scroll.",
+      "reminders": "Non-activating, click-through layered overlay; Google popup-notification rules; current-user DPAPI pending state; no ICO rewrite."
+    },
+    "verification": {
+      "tests": "artifacts/self-test.txt — all 201 checks pass",
+      "renders": [
+        "artifacts/google-events-{light,dark}-{96,120,144}.png",
+        "artifacts/calendar-settings-{light,dark}-{96,120,144}.png",
+        "artifacts/calendar-client-{light,dark}-{96,120,144}.png",
+        "artifacts/reminder-animation-frames.png"
+      ],
+      "verified": "Installed 0.5: one hidden startup process; preserved pin and enabled startup; real selected-day event retrieval; 860 × 475 at actual 120 DPI; one shared calendar/settings/editor window without app-window style. Actual preview overlay is centered on the pin, click-through and non-activating, with unchanged foreground and ICO timestamp; date click acknowledges it and opens the calendar.",
+      "limits": [
+        "Future Google event delivery at its real wall-clock reminder time remains unverified.",
+        "Requested DPI renders do not verify real mixed-monitor transitions.",
+        "Pinned-icon rollover after real midnight remains unverified."
+      ],
+      "installedProbe": "artifacts/VerifyCurrentUi.ps1",
+      "actualReminderPreview": "artifacts/installed-reminder-accent.png"
+    }
+  },
+  "components": [
+    {
+      "name": "Date icon",
+      "kind": "custom",
+      "refersTo": "date-icon",
+      "description": "Portable preview of the incumbent date icon. Production fits native weekday/day glyph contours on the 64-unit plane.",
+      "html": "<svg class=\"ds-icon\" width=\"64\" height=\"64\" viewBox=\"0 0 64 64\" role=\"img\" aria-label=\"12 ноября\"><defs><clipPath id=\"ds-calendar-clip\"><rect x=\"1\" y=\"1\" width=\"62\" height=\"62\" rx=\"6\"/></clipPath></defs><rect x=\"1\" y=\"1\" width=\"62\" height=\"62\" rx=\"6\" fill=\"#FCFCFC\"/><g clip-path=\"url(#ds-calendar-clip)\"><rect x=\"0\" y=\"0\" width=\"64\" height=\"27\" fill=\"#C42B36\"/><text x=\"32\" y=\"22\" class=\"ds-icon-weekday\">ЧТ</text><text x=\"32\" y=\"55\" class=\"ds-icon-day\">12</text></g><rect x=\"1\" y=\"1\" width=\"62\" height=\"62\" rx=\"6\" fill=\"none\" stroke=\"#D7D7D7\"/></svg>",
+      "css": ".ds-icon text{font-family:\"Segoe UI\",sans-serif;font-weight:700;text-anchor:middle}.ds-icon-weekday{font-size:27px;fill:#FFFFFF}.ds-icon-day{font-size:41px;fill:#18181B}"
+    },
+    {
+      "name": "Event card — light",
+      "kind": "card",
+      "refersTo": "event-card-light",
+      "description": "Native event-card preview: accent time, bold two-line title and source-calendar metadata; 92px row pitch.",
+      "html": "<button class=\"ds-event-card-light\" type=\"button\" title=\"10:00 — 11:00, Планирование недели — синтетический пример, Команда\"><span class=\"ds-event-time\">10:00 — 11:00</span><span class=\"ds-event-title\">Планирование недели — синтетический пример</span><span class=\"ds-event-source\">Команда</span></button>",
+      "css": ".ds-event-card-light{position:relative;display:block;width:309px;height:84px;margin:3px 1px 5px;padding:0;border:1px solid #DEDEDE;border-radius:8px;background:#FFFFFF;color:#202020;font-family:\"Segoe UI\",sans-serif;text-align:left;cursor:pointer}.ds-event-card-light:hover,.ds-event-card-light:active{background:#E8E8E8}.ds-event-card-light:focus-visible{outline:1px dotted #202020;outline-offset:-4px}.ds-event-card-light .ds-event-time{position:absolute;left:12px;right:12px;top:7px;height:18px;font-size:9pt;color:#C42B36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event-card-light .ds-event-title{position:absolute;left:12px;right:12px;top:27px;height:34px;font-size:10pt;font-weight:700;line-height:17px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.ds-event-card-light .ds-event-source{position:absolute;left:12px;right:12px;top:64px;height:16px;font-size:9pt;color:#626262;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+    },
+    {
+      "name": "Event card — dark",
+      "kind": "card",
+      "refersTo": "event-card-dark",
+      "description": "Native event-card preview: accent time, bold two-line title and source-calendar metadata; 92px row pitch.",
+      "html": "<button class=\"ds-event-card-dark\" type=\"button\" title=\"10:00 — 11:00, Планирование недели — синтетический пример, Команда\"><span class=\"ds-event-time\">10:00 — 11:00</span><span class=\"ds-event-title\">Планирование недели — синтетический пример</span><span class=\"ds-event-source\">Команда</span></button>",
+      "css": ".ds-event-card-dark{position:relative;display:block;width:309px;height:84px;margin:3px 1px 5px;padding:0;border:1px solid #444444;border-radius:8px;background:#292929;color:#F5F5F5;font-family:\"Segoe UI\",sans-serif;text-align:left;cursor:pointer}.ds-event-card-dark:hover,.ds-event-card-dark:active{background:#383838}.ds-event-card-dark:focus-visible{outline:1px dotted #F5F5F5;outline-offset:-4px}.ds-event-card-dark .ds-event-time{position:absolute;left:12px;right:12px;top:7px;height:18px;font-size:9pt;color:#FF8B91;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event-card-dark .ds-event-title{position:absolute;left:12px;right:12px;top:27px;height:34px;font-size:10pt;font-weight:700;line-height:17px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.ds-event-card-dark .ds-event-source{position:absolute;left:12px;right:12px;top:64px;height:16px;font-size:9pt;color:#BDBDBD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+    },
+    {
+      "name": "Settings gear",
+      "kind": "button",
+      "description": "Portable preview of the 32px native gear, with attention dot and visible focus.",
+      "html": "<button class=\"ds-settings\" type=\"button\" aria-label=\"Настройки\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" aria-hidden=\"true\"><path d=\"m9 3 1-2h4l1 2 2 1 2-.2 2 3-1.2 1.8v2.8L21 13l-2 3-2-.2-2 1-1 2h-4l-1-2-2-1-2 .2-2-3 1.2-1.8V8.4L3 6.8l2-3 2 .2Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\"/><circle cx=\"12\" cy=\"9.5\" r=\"3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\"/></svg><span class=\"ds-settings-attention\"></span></button>",
+      "css": ".ds-settings{position:relative;display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;background:#FAFAFA;color:#202020;cursor:pointer}.ds-settings:hover,.ds-settings:active{background:#E8E8E8}.ds-settings:focus-visible{outline:1px dotted #202020;outline-offset:-3px}.ds-settings-attention{position:absolute;right:3px;top:3px;width:4px;height:4px;border-radius:50%;background:#C42B36}"
+    },
+    {
+      "name": "Settings action",
+      "kind": "button",
+      "description": "Flat left-aligned action row in the inline settings page.",
+      "html": "<button class=\"ds-settings-action\" type=\"button\">Обновить встречи</button>",
+      "css": ".ds-settings-action{width:312px;height:34px;padding:0 0 0 10px;border:0;background:#FAFAFA;color:#202020;text-align:left;font:10pt \"Segoe UI\",sans-serif;cursor:pointer}.ds-settings-action:hover,.ds-settings-action:active{background:#E8E8E8}.ds-settings-action:focus-visible{outline:1px dotted #202020;outline-offset:-3px}.ds-settings-action:disabled{color:#626262;cursor:default}"
+    },
+    {
+      "name": "Client field",
+      "kind": "input",
+      "description": "Inline OAuth editor field; the secret uses a masked native textbox.",
+      "html": "<label class=\"ds-client-label\">Client secret<input class=\"ds-client-input\" type=\"password\" autocomplete=\"off\" aria-label=\"OAuth Client secret\" /></label>",
+      "css": ".ds-client-label{display:block;width:312px;color:#202020;font:10pt \"Segoe UI\",sans-serif}.ds-client-input{display:block;box-sizing:border-box;width:312px;height:28px;margin-top:4px;padding:2px 4px;border:1px solid #727272;border-radius:0;background:#E8E8E8;color:#202020;font:10pt \"Segoe UI\",sans-serif}.ds-client-input:hover{border-color:#202020}.ds-client-input:focus-visible{outline:1px solid #C42B36;outline-offset:1px}"
+    },
+    {
+      "name": "Save client",
+      "kind": "button",
+      "description": "Accent-filled save action in the inline OAuth editor.",
+      "html": "<button class=\"ds-client-save\" type=\"button\">Сохранить</button>",
+      "css": ".ds-client-save{width:208px;height:34px;padding:0;border:0;background:#C42B36;color:#FFFFFF;font:10pt \"Segoe UI\",sans-serif;cursor:pointer}.ds-client-save:hover,.ds-client-save:active{background:#C42B36}.ds-client-save:focus-visible{outline:1px dotted #FFFFFF;outline-offset:-4px}.ds-client-save:disabled{opacity:.6;cursor:default}"
+    },
+    {
+      "name": "Today day cell",
+      "kind": "button",
+      "description": "Circular today fill with the raised event marker; keyboard focus stays visible.",
+      "html": "<button class=\"ds-day-today\" type=\"button\" aria-label=\"четверг, 12 ноября 2026, сегодня, есть встречи\"><span>12</span><i></i></button>",
+      "css": ".ds-day-today{position:relative;width:40px;height:30px;border:0;background:#FAFAFA;color:#FFFFFF;font:10pt \"Segoe UI\",sans-serif;cursor:pointer}.ds-day-today span{display:grid;place-items:center;position:absolute;width:27px;height:27px;left:6.5px;top:1.5px;border-radius:50%;background:#C42B36}.ds-day-today i{position:absolute;width:2.5px;height:2.5px;left:18.75px;bottom:4px;border-radius:50%;background:#FFFFFF}.ds-day-today:hover span,.ds-day-today:active span{background:#C42B36}.ds-day-today:focus-visible{outline:1px dotted #FFFFFF;outline-offset:-9px}"
+    },
+    {
+      "name": "Reminder accent",
+      "kind": "custom",
+      "description": "Illustrative overlay preview: a quiet 1.8s breathing outline and badge; production is click-through and does not rewrite the icon.",
+      "html": "<div class=\"ds-reminder\" role=\"img\" aria-label=\"Есть неподтверждённое напоминание\"><div class=\"ds-reminder-icon\"><b>ЧТ</b><strong>12</strong></div><span class=\"ds-reminder-outline\"></span><span class=\"ds-reminder-badge\"></span></div>",
+      "css": ".ds-reminder{position:relative;width:48px;height:48px;font-family:\"Segoe UI\",sans-serif;pointer-events:none}.ds-reminder-icon{position:absolute;left:8px;top:8px;width:32px;height:32px;border-radius:6px;background:#FCFCFC;overflow:hidden;text-align:center}.ds-reminder-icon b{display:block;height:14px;background:#C42B36;color:#FFFFFF;font-size:11px}.ds-reminder-icon strong{color:#18181B;font-size:18px;line-height:18px}.ds-reminder-outline{position:absolute;left:8px;top:8px;width:32px;height:32px;border:1.2px solid #C42B36;border-radius:6px;opacity:.18;animation:ds-reminder-breathe 1.8s ease-in-out infinite}.ds-reminder-badge{position:absolute;left:33px;top:9px;width:6px;height:6px;border:1px solid #FFFFFF;border-radius:50%;background:#C42B36;animation:ds-reminder-breathe 1.8s ease-in-out infinite}@keyframes ds-reminder-breathe{50%{opacity:.43;transform:scale(1.02)}}@media(prefers-reduced-motion:reduce),(forced-colors:active){.ds-reminder-outline,.ds-reminder-badge{animation:none;opacity:1}}@media(forced-colors:active){.ds-reminder-outline{border-color:Highlight}.ds-reminder-badge{background:Highlight}}"
+    }
+  ],
+  "narrative": {
+    "overview": "The date icon remains the product's primary surface: red weekday strip, white paper, large day number, and Segoe UI. Clicking it toggles a compact two-pane calendar: month navigation on the left, clearly separated meeting cards on the right. The approved wider layout preserves the icon's identity and restrained theme-aware surfaces while making meetings easier to scan.\n\nBackground startup keeps the native host minimized and opens neither popup nor browser. Once pinned, the launcher remains visible while the host removes its own taskbar button. The calendar must preserve this absence of a running-app indicator.",
+    "keyCharacteristics": [
+      "Calendar left, meetings right, with a fine vertical divider.",
+      "Compact type hierarchy and distinct event time, title and source-calendar roles.",
+      "Settings and OAuth editing stay inside one reusable native tool window.",
+      "A quiet reminder accent persists until the user clicks the date."
+    ],
+    "rules": [],
+    "dos": [
+      "**Do** preserve the established icon geometry, palette, large glyphs, and executable identity.",
+      "**Do** keep theme contrast, distinct today/selection states, keyboard focus, and readable scaled labels.",
+      "**Do** keep meetings to the right of the calendar with clearly separated cards and source-calendar labels.",
+      "**Do** keep connection, startup and exit controls behind the gear inside the same flyout.",
+      "**Do** keep background startup invisible and the popup transient.",
+      "**Do** distinguish an empty day from loading, offline data and a request to sign in again.",
+      "**Do** preserve pending reminder attention until a date click and respect Windows motion preferences."
+    ],
+    "donts": [
+      "**Don't** add a separate taskbar button or running-app indicator for the popup.",
+      "**Don't** animate by rewriting the pinned date icon or rebuild separate modal setup windows.",
+      "**Don't** treat rendered DPI samples as proof of real mixed-monitor behavior or real-midnight rollover.",
+      "**Don't** present synthetic events or authorization tests as a verified real-account connection."
+    ]
+  }
+}

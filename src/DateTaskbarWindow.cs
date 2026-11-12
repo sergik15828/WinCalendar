@@ -15,8 +15,6 @@ namespace WinCalendar
         private readonly bool integrateWithShell;
         private readonly Func<DateTime> now;
         private readonly Timer timer;
-        private readonly ContextMenuStrip menu;
-        private readonly ToolStripMenuItem startup;
         private readonly uint taskbarCreatedMessage;
         private Icon ownedIcon;
         private Icon smallIcon;
@@ -39,15 +37,6 @@ namespace WinCalendar
             ShowInTaskbar = !shell || !ShellIntegration.HasPinnedShortcut();
             MaximizeBox = false;
             taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
-            menu = new ContextMenuStrip();
-            menu.Items.Add("Открыть Google Календарь", null, delegate { Program.OpenGoogleCalendar(); });
-            menu.Items.Add("Настроить подключение Google…", null, delegate { calendar.ConfigureGoogle(); });
-            menu.Items.Add(new ToolStripSeparator());
-            startup = new ToolStripMenuItem("Запускать с Windows") { CheckOnClick = true };
-            startup.Click += delegate { ShellIntegration.StartsWithWindows = startup.Checked; };
-            menu.Items.Add(startup);
-            menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add("Выйти", null, delegate { Close(); });
             timer = new Timer();
             timer.Tick += delegate
             {
@@ -61,6 +50,7 @@ namespace WinCalendar
             };
             RefreshDate(true);
             calendar = new CalendarPopup(now, Program.OpenGoogleCalendar, integrateWithShell);
+            calendar.ExitRequested += delegate { Close(); };
             if (integrateWithShell)
             {
                 SystemEvents.TimeChanged += OnTimeChanged;
@@ -164,6 +154,7 @@ namespace WinCalendar
                 else if (command == Program.MenuCommand && integrateWithShell) ShowMenu();
                 else if (command == Program.GoogleSetupCommand && integrateWithShell) calendar.ConfigureGoogle();
                 else if (command == Program.GoogleConnectCommand && integrateWithShell) calendar.ConnectGoogle();
+                else if (command == Program.PreviewReminderCommand && integrateWithShell) calendar.PreviewReminder();
                 else if (command == Program.OpenCalendarCommand && integrateWithShell) ToggleCalendar();
                 else RefreshDate(false);
                 return;
@@ -174,10 +165,10 @@ namespace WinCalendar
 
         private void ShowMenu()
         {
-            calendar.Hide();
-            startup.Checked = ShellIntegration.StartsWithWindows;
-            menu.Show(Cursor.Position);
+            calendar.ShowCalendarSettings();
         }
+
+        internal void StartBackgroundServices() { if (integrateWithShell) calendar.StartBackgroundServices(); }
 
         internal void ToggleCalendar()
         {
@@ -189,7 +180,6 @@ namespace WinCalendar
         {
             timer.Stop();
             timer.Dispose();
-            menu.Dispose();
             calendar.Dispose();
             if (ownedIcon != null) ownedIcon.Dispose();
             if (smallIcon != null) smallIcon.Dispose();

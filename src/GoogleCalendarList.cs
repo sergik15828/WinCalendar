@@ -6,7 +6,8 @@ namespace WinCalendar
 {
     internal sealed class GoogleCalendarEntry
     {
-        internal string Id, Name;
+        internal string Id, Name, TimeZone;
+        internal List<int> DefaultReminders;
     }
 
     internal sealed class GoogleCalendarList
@@ -31,7 +32,9 @@ namespace WinCalendar
                 // Include readable additional calendars, even if their display
                 // checkbox differs between Google Calendar browser sessions.
                 string name = Json.Text(data, "summaryOverride") ?? Json.Text(data, "summary");
-                list.Calendars.Add(new GoogleCalendarEntry { Id = id, Name = name ?? "Google Calendar" });
+                object defaults;
+                list.Calendars.Add(new GoogleCalendarEntry { Id = id, Name = name ?? "Google Calendar", TimeZone = Json.Text(data, "timeZone"),
+                    DefaultReminders = data.TryGetValue("defaultReminders", out defaults) ? GoogleReminderRules.PopupMinutes(defaults) : new List<int>() });
             }
             return list;
         }

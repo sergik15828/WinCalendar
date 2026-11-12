@@ -3,7 +3,8 @@ artifacts/
 obj/
 bin/
 .vs/
-.impeccable/
+.impeccable/*
+!.impeccable/design.json
 .agents/
 .codex/
 .aws/

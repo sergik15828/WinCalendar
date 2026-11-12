@@ -18,14 +18,22 @@ namespace WinCalendar
         private readonly Button todayButton;
         private readonly Button googleButton;
         private readonly Label selectedDate, emptyEvents, syncStatus, updatedStatus;
+        private readonly Label agendaHeading;
         private readonly CalendarEventList eventsList;
         private readonly Button connectButton, refreshButton, disconnectButton;
+        private readonly CalendarSymbolButton settingsButton;
+        private readonly Panel settingsPage;
+        private readonly CheckBox startupCheck;
+        private readonly Button configureButton, previewButton, exitButton;
+        private readonly Label reminderInfo;
+        private readonly List<Control> calendarControls;
+        private bool settingsVisible;
         private CalendarViewData viewData = new CalendarViewData { Message = "Подключите Google, чтобы видеть встречи." };
         private DateTime renderedMonth;
         private readonly Label[] weekLabels = new Label[7];
         private readonly CalendarDayButton[] dayButtons = new CalendarDayButton[42];
-        private readonly Font headingFont = new Font("Segoe UI", 20, FontStyle.Bold);
-        private readonly Font monthFont = new Font("Segoe UI", 12.5f, FontStyle.Bold);
+        private readonly Font headingFont = new Font("Segoe UI", 17, FontStyle.Bold);
+        private readonly Font monthFont = new Font("Segoe UI", 11.5f, FontStyle.Bold);
         private readonly Font bodyFont = new Font("Segoe UI", 10);
         private readonly Font smallFont = new Font("Segoe UI", 9);
         private CalendarPalette palette;
@@ -33,12 +41,15 @@ namespace WinCalendar
         private readonly Dictionary<Control, Font> logicalFonts = new Dictionary<Control, Font>();
         private readonly List<Font> scaledFonts = new List<Font>();
         private int layoutDpi;
-        internal const int LogicalWidth = 344, LogicalHeight = 672;
+        internal const int LogicalWidth = 688, LogicalHeight = 380;
         internal Size NaturalSize { get { return new Size(Pixels(LogicalWidth), Pixels(LogicalHeight)); } }
         internal CalendarState State { get; private set; }
         internal event EventHandler GoogleRequested;
         internal event EventHandler DismissRequested;
         internal event EventHandler RangeChanged, ConnectRequested, RefreshRequested, DisconnectRequested;
+        internal event EventHandler ConfigureRequested, PreviewRequested, ExitRequested;
+        internal event EventHandler SettingsOpened;
+        internal event Action<bool> StartupRequested;
         internal event Action<string> EventRequested;
         internal Button TodayButton { get { return todayButton; } }
         internal Button GoogleButton { get { return googleButton; } }
@@ -49,6 +60,8 @@ namespace WinCalendar
         internal Button DisconnectButton { get { return disconnectButton; } }
         internal CalendarEventList EventList { get { return eventsList; } }
         internal string StatusText { get { return syncStatus.Text; } }
+        internal Button SettingsButton { get { return settingsButton; } }
+        internal bool SettingsVisible { get { return settingsVisible; } }
 
         internal CalendarPanel(DateTime today)
         {
@@ -62,11 +75,14 @@ namespace WinCalendar
             DoubleBuffered = true;
             AccessibleName = "Календарь";
             State = new CalendarState(today);
-            heading = LabelAt(new Rectangle(16, 14, 312, 40), headingFont);
-            weekday = LabelAt(new Rectangle(16, 54, 312, 22), bodyFont);
-            month = LabelAt(new Rectangle(16, 91, 230, 32), monthFont);
-            previous = new CalendarArrow(false) { Bounds = new Rectangle(256, 91, 34, 32), AccessibleName = "Предыдущий месяц", TabIndex = 0 };
-            next = new CalendarArrow(true) { Bounds = new Rectangle(294, 91, 34, 32), AccessibleName = "Следующий месяц", TabIndex = 1 };
+            heading = LabelAt(new Rectangle(16, 10, 272, 32), headingFont);
+            weekday = LabelAt(new Rectangle(16, 42, 272, 20), smallFont);
+            settingsButton = new CalendarSymbolButton { Bounds = new Rectangle(640, 16, 32, 32), AccessibleName = "Настройки", TabIndex = 0 };
+            settingsButton.Click += delegate { ShowSettings(!settingsVisible); };
+            Controls.Add(settingsButton);
+            month = LabelAt(new Rectangle(16, 68, 166, 28), monthFont);
+            previous = new CalendarArrow(false) { Bounds = new Rectangle(260, 68, 32, 28), AccessibleName = "Предыдущий месяц", TabIndex = 2 };
+            next = new CalendarArrow(true) { Bounds = new Rectangle(296, 68, 32, 28), AccessibleName = "Следующий месяц", TabIndex = 3 };
             previous.Click += delegate { MoveMonth(-1, false); };
             next.Click += delegate { MoveMonth(1, false); };
             Controls.Add(previous); Controls.Add(next);
@@ -75,7 +91,7 @@ namespace WinCalendar
             {
                 int left = 16 + column * 312 / 7;
                 int width = (column + 1) * 312 / 7 - column * 312 / 7;
-                weekLabels[column] = LabelAt(new Rectangle(left, 130, width, 26), smallFont);
+                weekLabels[column] = LabelAt(new Rectangle(left, 102, width, 22), smallFont);
                 weekLabels[column].Text = names[column];
                 weekLabels[column].TextAlign = ContentAlignment.MiddleCenter;
                 for (int row = 0; row < 6; row++)
@@ -83,34 +99,54 @@ namespace WinCalendar
                     int index = row * 7 + column;
                     CalendarDayButton button = new CalendarDayButton
                     {
-                        Bounds = new Rectangle(left + 2, 156 + row * 40 + 2, width - 4, 36),
-                        Font = bodyFont, TabIndex = 2, FlatStyle = FlatStyle.Flat
+                        Bounds = new Rectangle(left + 2, 126 + row * 32, width - 4, 30),
+                        Font = bodyFont, TabIndex = 4, FlatStyle = FlatStyle.Flat
                     };
                     button.Click += delegate { State.Select((DateTime)button.Tag); RenderState(true); };
                     dayButtons[index] = button; Controls.Add(button);
                 }
             }
-            selectedDate = LabelAt(new Rectangle(16, 406, 312, 30), bodyFont);
-            eventsList = new CalendarEventList { Bounds = new Rectangle(16, 438, 312, 104), Font = bodyFont, TabIndex = 3 };
+            agendaHeading = LabelAt(new Rectangle(360, 16, 266, 28), monthFont);
+            agendaHeading.Text = "Встречи";
+            selectedDate = LabelAt(new Rectangle(360, 48, 312, 24), smallFont);
+            eventsList = new CalendarEventList { Bounds = new Rectangle(360, 86, 312, 278), Font = bodyFont, TabIndex = 5 };
             eventsList.OpenRequested += delegate(string url) { if (EventRequested != null) EventRequested(url); };
             Controls.Add(eventsList);
             emptyEvents = LabelAt(eventsList.Bounds, bodyFont);
-            syncStatus = LabelAt(new Rectangle(16, 546, 312, 20), smallFont);
+            todayButton = FooterButton("Сегодня", new Rectangle(184, 68, 72, 28), 1);
+            todayButton.Font = smallFont;
+            todayButton.AccessibleName = "Перейти к сегодняшней дате";
+            todayButton.Click += delegate { State.GoToToday(); RenderState(false); };
+            calendarControls = Controls.Cast<Control>().Where(c => c != heading && c != weekday && c != settingsButton).ToList();
+            settingsPage = new Panel { Bounds = new Rectangle(16, 70, 656, 294), Visible = false };
+            Controls.Add(settingsPage);
+            syncStatus = SettingsLabel(new Rectangle(0, 0, 312, 38), bodyFont);
             syncStatus.AutoEllipsis = true;
-            updatedStatus = LabelAt(new Rectangle(16, 566, 312, 18), smallFont);
-            connectButton = FooterButton("Войти в Google", new Rectangle(16, 588, 128, 28), 4);
-            refreshButton = FooterButton("Обновить", new Rectangle(152, 588, 82, 28), 5);
-            disconnectButton = FooterButton("Отключить", new Rectangle(242, 588, 86, 28), 6);
-            connectButton.Font = refreshButton.Font = disconnectButton.Font = smallFont;
+            updatedStatus = SettingsLabel(new Rectangle(0, 40, 312, 20), smallFont);
+            connectButton = SettingsAction("Войти в Google", 76, 0);
+            refreshButton = SettingsAction("Обновить встречи", 114, 1);
+            googleButton = SettingsAction("Открыть Google Calendar", 152, 2);
+            previewButton = SettingsAction("Проверить напоминание", 190, 3);
+            configureButton = SettingsAction("Настроить подключение", 0, 4);
+            configureButton.Left = 344;
+            disconnectButton = SettingsAction("Отключить Google", 38, 5);
+            disconnectButton.Left = 344;
             connectButton.Click += delegate { if (ConnectRequested != null) ConnectRequested(this, EventArgs.Empty); };
             refreshButton.Click += delegate { if (RefreshRequested != null) RefreshRequested(this, EventArgs.Empty); };
             disconnectButton.Click += delegate { if (DisconnectRequested != null) DisconnectRequested(this, EventArgs.Empty); };
-            todayButton = FooterButton("Сегодня", new Rectangle(16, 624, 72, 32), 7);
-            todayButton.AccessibleName = "Перейти к сегодняшней дате";
-            todayButton.Click += delegate { State.GoToToday(); RenderState(false); };
-            googleButton = FooterButton("Открыть Google Calendar", new Rectangle(96, 624, 232, 32), 8);
             googleButton.Click += delegate { if (GoogleRequested != null) GoogleRequested(this, EventArgs.Empty); };
-            foreach (Control control in Controls) { logicalBounds.Add(control, control.Bounds); logicalFonts.Add(control, control.Font); }
+            configureButton.Click += delegate { if (ConfigureRequested != null) ConfigureRequested(this, EventArgs.Empty); };
+            previewButton.Click += delegate { if (PreviewRequested != null) PreviewRequested(this, EventArgs.Empty); };
+            reminderInfo = SettingsLabel(new Rectangle(344, 98, 312, 50), smallFont);
+            reminderInfo.Text = "Напоминания — как в событии Google.\nПульсация остаётся до нажатия на дату.";
+            startupCheck = new CheckBox { Bounds = new Rectangle(344, 168, 312, 26), Font = smallFont, Text = "Запускать с Windows", TabIndex = 6 };
+            startupCheck.Click += delegate { if (StartupRequested != null) StartupRequested(startupCheck.Checked); };
+            settingsPage.Controls.Add(startupCheck);
+            exitButton = SettingsAction("Выйти", 218, 7);
+            exitButton.Left = 344;
+            exitButton.Height = 32;
+            exitButton.Click += delegate { if (ExitRequested != null) ExitRequested(this, EventArgs.Empty); };
+            foreach (Control control in Descendants(this)) { logicalBounds.Add(control, control.Bounds); logicalFonts.Add(control, control.Font); }
             SetDpi(96);
             ApplyTheme(null);
         }
@@ -124,7 +160,7 @@ namespace WinCalendar
             SuspendLayout();
             AutoScrollPosition = Point.Empty;
             Dictionary<Font, Font> replacements = new Dictionary<Font, Font>();
-            foreach (Control control in Controls)
+            foreach (Control control in Descendants(this))
             {
                 Rectangle bounds = logicalBounds[control];
                 control.Bounds = new Rectangle(Pixels(bounds.X), Pixels(bounds.Y), Pixels(bounds.Width), Pixels(bounds.Height));
@@ -149,6 +185,42 @@ namespace WinCalendar
             Controls.Add(label); return label;
         }
 
+        private Label SettingsLabel(Rectangle bounds, Font font)
+        {
+            Label label = new Label { Bounds = bounds, Font = font, TextAlign = ContentAlignment.MiddleLeft };
+            settingsPage.Controls.Add(label); return label;
+        }
+
+        private Button SettingsAction(string text, int top, int index)
+        {
+            Button button = new Button { Bounds = new Rectangle(0, top, 312, 34), Text = text, Font = bodyFont,
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, TabIndex = index };
+            button.FlatAppearance.BorderSize = 0;
+            settingsPage.Controls.Add(button); return button;
+        }
+
+        internal static IEnumerable<Control> Descendants(Control parent)
+        {
+            foreach (Control child in parent.Controls)
+            {
+                yield return child;
+                foreach (Control nested in Descendants(child)) yield return nested;
+            }
+        }
+
+        internal void ShowSettings(bool show)
+        {
+            settingsVisible = show;
+            foreach (Control control in calendarControls) control.Visible = !show;
+            settingsPage.Visible = show;
+            settingsButton.IsClose = show;
+            settingsButton.AccessibleName = show ? "Закрыть настройки" : "Настройки";
+            RenderState(false);
+            if (show && SettingsOpened != null) SettingsOpened(this, EventArgs.Empty);
+        }
+
+        internal void SetStartup(bool enabled) { startupCheck.Checked = enabled; }
+
         private Button FooterButton(string text, Rectangle bounds, int tabIndex)
         {
             Button button = new Button { Text = text, Bounds = bounds, Font = bodyFont, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, TabIndex = tabIndex };
@@ -158,7 +230,7 @@ namespace WinCalendar
 
         internal void Reset(DateTime today)
         {
-            State.UpdateToday(today); State.GoToToday(); ApplyTheme(null);
+            State.UpdateToday(today); State.GoToToday(); ShowSettings(false); ApplyTheme(null);
         }
 
         internal void UpdateToday(DateTime today) { State.UpdateToday(today); RenderState(false); }
@@ -167,19 +239,19 @@ namespace WinCalendar
         {
             palette = CalendarPalette.Create(dark);
             BackColor = palette.Surface;
-            foreach (Control control in Controls) control.BackColor = palette.Surface;
-            heading.ForeColor = month.ForeColor = palette.Ink;
+            foreach (Control control in Descendants(this)) control.BackColor = palette.Surface;
+            heading.ForeColor = month.ForeColor = agendaHeading.ForeColor = palette.Ink;
             weekday.ForeColor = palette.Secondary;
-            selectedDate.ForeColor = palette.Ink;
-            emptyEvents.ForeColor = syncStatus.ForeColor = updatedStatus.ForeColor = palette.Secondary;
-            foreach (Button action in new[] { connectButton, refreshButton, disconnectButton })
-            { action.ForeColor = palette.Accent; action.FlatAppearance.MouseOverBackColor = palette.Hover; }
+            selectedDate.ForeColor = palette.Secondary;
+            emptyEvents.ForeColor = syncStatus.ForeColor = updatedStatus.ForeColor = reminderInfo.ForeColor = palette.Secondary;
+            startupCheck.ForeColor = palette.Ink;
+            settingsButton.Palette = palette;
+            foreach (Button action in new[] { connectButton, refreshButton, disconnectButton, googleButton, configureButton, previewButton, exitButton })
+            { action.ForeColor = palette.Ink; action.FlatAppearance.MouseOverBackColor = palette.Hover; }
+            disconnectButton.ForeColor = palette.Accent;
             previous.Palette = next.Palette = palette;
             todayButton.ForeColor = palette.Accent;
             todayButton.FlatAppearance.MouseOverBackColor = palette.Hover;
-            googleButton.BackColor = palette.Accent; googleButton.ForeColor = palette.OnAccent;
-            googleButton.FlatAppearance.MouseOverBackColor = palette.Accent;
-            googleButton.FlatAppearance.MouseDownBackColor = palette.Accent;
             for (int i = 0; i < 7; i++) weekLabels[i].ForeColor = i >= 5 ? palette.Weekend : palette.Secondary;
             RenderState(false);
         }
@@ -188,8 +260,8 @@ namespace WinCalendar
 
         private void RenderState(bool focus)
         {
-            heading.Text = State.Today.ToString("d MMMM", DateText.Russian);
-            weekday.Text = DateText.Russian.TextInfo.ToTitleCase(State.Today.ToString("dddd", DateText.Russian));
+            heading.Text = settingsVisible ? "Настройки" : State.Today.ToString("d MMMM", DateText.Russian);
+            weekday.Text = settingsVisible ? "WinCalendar" : DateText.Russian.TextInfo.ToTitleCase(State.Today.ToString("dddd", DateText.Russian));
             month.Text = DateText.Russian.TextInfo.ToTitleCase(State.Month.ToString("MMMM yyyy", DateText.Russian));
             previous.Enabled = State.Month > CalendarState.Minimum;
             next.Enabled = State.Month < new DateTime(9998, 12, 1);
@@ -229,7 +301,7 @@ namespace WinCalendar
             CalendarEvent[] day = viewData.Events.Where(e => e.OccursOn(State.Selected, TimeZoneInfo.Local)).OrderBy(e => e.SortOrder).ToArray();
             selectedDate.Text = State.Selected.ToString("d MMMM yyyy", DateText.Russian) + (day.Length == 0 ? "" : " · " + day.Length);
             eventsList.SetEvents(day, State.Selected, TimeZoneInfo.Local, palette, layoutDpi);
-            eventsList.Visible = day.Length > 0; emptyEvents.Visible = day.Length == 0;
+            eventsList.Visible = !settingsVisible && day.Length > 0; emptyEvents.Visible = !settingsVisible && day.Length == 0;
             emptyEvents.Text = viewData.Connection == CalendarConnection.Disconnected ? "Подключите календари Google,\nчтобы видеть встречи выбранного дня."
                 : viewData.Connection == CalendarConnection.NeedsLogin ? "Войдите в Google, чтобы проверить встречи\nво всех доступных календарях."
                 : viewData.Loading ? "Проверяем встречи…"
@@ -238,7 +310,10 @@ namespace WinCalendar
             syncStatus.Text = viewData.Message;
             updatedStatus.Text = viewData.UpdatedUtc.HasValue ? "Данные: " + viewData.UpdatedUtc.Value.ToLocalTime().ToString("d MMM HH:mm", DateText.Russian) : "";
             bool connected = viewData.Connection == CalendarConnection.Connected, busy = viewData.Connection == CalendarConnection.Busy;
+            settingsButton.HasAttention = viewData.LoadError || viewData.Connection == CalendarConnection.NeedsLogin;
+            settingsButton.Invalidate();
             connectButton.Text = busy ? "Отмена входа" : connected ? "Сменить аккаунт" : "Войти в Google";
+            connectButton.ForeColor = connected ? palette.Ink : palette.Accent;
             refreshButton.Enabled = connected && !viewData.Loading;
             disconnectButton.Enabled = connected || viewData.Connection == CalendarConnection.NeedsLogin;
         }
@@ -252,9 +327,11 @@ namespace WinCalendar
         {
             if (keyData == Keys.Escape)
             {
+                if (settingsVisible) { ShowSettings(false); FocusSelectedDay(); return true; }
                 if (DismissRequested != null) DismissRequested(this, EventArgs.Empty);
                 return true;
             }
+            if (settingsVisible) return base.ProcessCmdKey(ref message, keyData);
             if (keyData == Keys.PageUp || keyData == Keys.PageDown) { MoveMonth(keyData == Keys.PageUp ? -1 : 1, true); return true; }
             if (keyData == Keys.Home) { State.GoToToday(); RenderState(true); return true; }
             bool dayFocused = false;
@@ -269,7 +346,7 @@ namespace WinCalendar
             base.OnPaint(args);
             int inset = Pixels(16);
             using (Pen rule = new Pen(palette.Rule))
-                foreach (int y in new[] { 400, 620 }) args.Graphics.DrawLine(rule, inset, Pixels(y) + AutoScrollPosition.Y, Width - inset, Pixels(y) + AutoScrollPosition.Y);
+                args.Graphics.DrawLine(rule, Pixels(344) + AutoScrollPosition.X, inset, Pixels(344) + AutoScrollPosition.X, Height - inset);
         }
 
         protected override void Dispose(bool disposing)
@@ -281,17 +358,17 @@ namespace WinCalendar
 
     internal sealed class CalendarPalette
     {
-        internal Color Surface, Ink, Secondary, Adjacent, Accent, OnAccent, Hover, Weekend, Rule;
+        internal Color Surface, EventSurface, Ink, Secondary, Adjacent, Accent, OnAccent, Hover, Weekend, Rule;
         internal static CalendarPalette Create(bool? dark)
         {
-            if (SystemInformation.HighContrast) return new CalendarPalette { Surface = SystemColors.Window, Ink = SystemColors.WindowText,
+            if (SystemInformation.HighContrast) return new CalendarPalette { Surface = SystemColors.Window, EventSurface = SystemColors.Window, Ink = SystemColors.WindowText,
                 Secondary = SystemColors.WindowText, Adjacent = SystemColors.WindowText, Accent = SystemColors.Highlight,
                 OnAccent = SystemColors.HighlightText, Hover = SystemColors.Control, Weekend = SystemColors.WindowText, Rule = SystemColors.WindowText };
             bool isDark = false;
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
                 if (key != null) isDark = Object.Equals(key.GetValue("AppsUseLightTheme"), 0);
             isDark = dark ?? isDark;
-            return new CalendarPalette { Surface = Hex(isDark ? "202020" : "FAFAFA"), Ink = Hex(isDark ? "F5F5F5" : "202020"),
+            return new CalendarPalette { Surface = Hex(isDark ? "202020" : "FAFAFA"), EventSurface = Hex(isDark ? "292929" : "FFFFFF"), Ink = Hex(isDark ? "F5F5F5" : "202020"),
                 Secondary = Hex(isDark ? "BDBDBD" : "626262"), Adjacent = Hex(isDark ? "A0A0A0" : "727272"),
                 Accent = Hex(isDark ? "FF8B91" : "C42B36"), OnAccent = Hex(isDark ? "202020" : "FFFFFF"),
                 Hover = Hex(isDark ? "383838" : "E8E8E8"), Weekend = Hex(isDark ? "FFB6BB" : "A82330"), Rule = Hex(isDark ? "444444" : "DEDEDE") };
@@ -327,7 +404,7 @@ namespace WinCalendar
             {
                 float dot = 3 * scale;
                 using (Brush brush = new SolidBrush(Today ? Palette.OnAccent : Palette.Accent))
-                    args.Graphics.FillEllipse(brush, (Width - dot) / 2, Height - 5 * scale, dot, dot);
+                    args.Graphics.FillEllipse(brush, (Width - dot) / 2, Height - 8 * scale, dot, dot);
             }
             if (Focused && ShowFocusCues) ControlPaint.DrawFocusRectangle(args.Graphics, Rectangle.Inflate(circle, -4, -4), ink, Today ? Palette.Accent : Palette.Surface);
         }

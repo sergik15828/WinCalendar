@@ -8,6 +8,7 @@ colors:
   day-text: "#18181B"
   icon-border: "#D7D7D7"
   calendar-light-surface: "#FAFAFA"
+  calendar-light-event-surface: "#FFFFFF"
   calendar-light-ink: "#202020"
   calendar-light-secondary: "#626262"
   calendar-light-adjacent: "#727272"
@@ -15,6 +16,7 @@ colors:
   calendar-light-weekend: "#A82330"
   calendar-light-rule: "#DEDEDE"
   calendar-dark-surface: "#202020"
+  calendar-dark-event-surface: "#292929"
   calendar-dark-ink: "#F5F5F5"
   calendar-dark-secondary: "#BDBDBD"
   calendar-dark-adjacent: "#A0A0A0"
@@ -33,11 +35,11 @@ typography:
     fontWeight: 700
   calendar-heading:
     fontFamily: "Segoe UI"
-    fontSize: "20pt"
+    fontSize: "17pt"
     fontWeight: 700
   calendar-month:
     fontFamily: "Segoe UI"
-    fontSize: "12.5pt"
+    fontSize: "11.5pt"
     fontWeight: 700
   calendar-body:
     fontFamily: "Segoe UI"
@@ -47,12 +49,22 @@ typography:
     fontFamily: "Segoe UI"
     fontSize: "9pt"
     fontWeight: 400
+  calendar-event-title:
+    fontFamily: "Segoe UI"
+    fontSize: "10pt"
+    fontWeight: 700
+  calendar-event-detail:
+    fontFamily: "Segoe UI"
+    fontSize: "9pt"
+    fontWeight: 400
 rounded:
   icon: "6px"
+  calendar-event-card: "8px"
 spacing:
   calendar-inset: "16px"
-  calendar-week-row: "40px"
-  calendar-event-row: "54px"
+  calendar-week-row: "32px"
+  calendar-event-row: "92px"
+  calendar-event-inset: "12px"
 components:
   date-icon:
     backgroundColor: "{colors.paper}"
@@ -61,50 +73,65 @@ components:
   calendar-light:
     backgroundColor: "{colors.calendar-light-surface}"
     textColor: "{colors.calendar-light-ink}"
-    width: "344px"
-    height: "672px"
+    width: "688px"
+    height: "380px"
   calendar-dark:
     backgroundColor: "{colors.calendar-dark-surface}"
     textColor: "{colors.calendar-dark-ink}"
-    width: "344px"
-    height: "672px"
+    width: "688px"
+    height: "380px"
+  event-card-light:
+    backgroundColor: "{colors.calendar-light-event-surface}"
+    textColor: "{colors.calendar-light-ink}"
+    rounded: "{rounded.calendar-event-card}"
+  event-card-dark:
+    backgroundColor: "{colors.calendar-dark-event-surface}"
+    textColor: "{colors.calendar-dark-ink}"
+    rounded: "{rounded.calendar-event-card}"
 ---
 
 # Design System: WinCalendar
 
 ## Overview
 
-The date icon remains the product's primary surface: red weekday strip, white paper, large day number, and Segoe UI. Clicking it toggles a precise, compact month calendar with an optional selected-day list from the user's primary Google calendar. The popup extends the existing visual system with restrained theme-aware surfaces and the same red accent.
+The date icon remains the product's primary surface: red weekday strip, white paper, large day number, and Segoe UI. Clicking it toggles a compact two-pane calendar: month navigation on the left, clearly separated meeting cards on the right. The approved wider layout preserves the icon's identity and restrained theme-aware surfaces while making meetings easier to scan.
 
 Background startup keeps the native host minimized and opens neither popup nor browser. Once pinned, the launcher remains visible while the host removes its own taskbar button. The calendar must preserve this absence of a running-app indicator.
+
+**Key Characteristics:**
+
+- Calendar left, meetings right, with a fine vertical divider.
+- Compact type hierarchy and distinct event time, title and source-calendar roles.
+- Settings and OAuth editing stay inside one reusable native tool window.
+- A quiet reminder accent persists until the user clicks the date.
 
 ## Colors
 
 The frontmatter preserves the icon palette and adds the implemented calendar theme tokens. The icon retains its opaque paper and transparent surroundings in both Windows themes.
 
-The light popup uses the weekday-strip red for today, selection outlines, event dots, connection actions, the Today label, and the Google Calendar button; white weekday-text becomes the foreground on accent fills. Its neutral surface, primary ink, secondary labels, muted adjacent-month dates, hover fill, weekend ink, and divider use the calendar-light tokens.
+The light popup uses the weekday-strip red for today, selection outlines, event dots, event times, the Today label and actions needing attention. White weekday-text becomes the foreground on accent fills. Its neutral surface, primary ink, secondary labels, muted adjacent-month dates, hover fill, weekend ink, and divider use the calendar-light tokens. White event surfaces distinguish individual cards from the surrounding panel.
 
-The dark popup uses calendar-dark-accent with dark-surface ink on filled controls. Its remaining roles use the corresponding calendar-dark tokens. Windows High Contrast replaces the popup palette with system window, text, highlight, highlight-text, and control colors.
+The dark popup uses calendar-dark-accent with dark-surface ink on filled controls. Slightly lighter event surfaces separate cards from the main panel; borders use the rule token. Other roles use the corresponding calendar-dark tokens. Windows High Contrast replaces the popup palette with system window, text, highlight, highlight-text, and control colors.
 
 ## Typography
 
-Use Segoe UI throughout. The icon's bold glyphs fit their actual contours rather than ordinary text padding. The popup hierarchy is today's date (calendar-heading), the displayed month (calendar-month), day numbers, selected date and event rows (calendar-body), and weekday labels, sync status and connection actions (calendar-weekday). Event times use secondary ink above their titles. Calendar labels and full accessible date names are Russian; event titles retain their source text.
+Use Segoe UI throughout. The icon's bold glyphs fit their actual contours rather than ordinary text padding. The popup hierarchy is today's date or page heading (calendar-heading), displayed month and Встречи heading (calendar-month), day numbers and settings actions (calendar-body), and weekday, selected-date and status labels (calendar-weekday). Cards use bold calendar-event-title text beneath an accent-colored calendar-event-detail time; their source calendar uses the same detail size in secondary ink. Calendar labels and full accessible date names are Russian; event titles retain their source text.
 
 ## Layout
 
-The popup's natural size is fixed at 344 × 672 logical pixels at 96 DPI, with a 16px horizontal inset. The earlier 344 × 468 size is obsolete: the events extension adds space below the unchanged month grid. Today's date and weekday lead; the displayed month and two arrows precede a seven-column, six-week grid. Week rows are 40px high.
+The popup's natural size is 688 × 380 logical pixels at 96 DPI. This approved two-pane arrangement replaces the former tall layout. A fine divider at x=344 separates the calendar from the agenda. Both panes use 16px outer insets; the agenda starts at x=360 and is 312px wide. The seven-column, Monday-first calendar retains six week rows, now at a compact 32px pitch.
 
-Below the grid divider, the selected-date heading starts at y=406. Its scrollable event list starts at y=438 and is 312 × 104 logical pixels. Status and last-update text occupy y=546 and y=566, the three connection actions start at y=588, and the Today/Google footer starts at y=624 below a second divider. Keep this order consistent across loading, empty and account states.
+Today's date and weekday sit above the calendar. Today and the month arrows share the month-heading row. The right pane has a Встречи heading, a selected-date/count subtitle and an independently scrollable event list at (360,86), sized 312 × 278 logical pixels. The gear at (640,16) opens settings in the same footprint. Connection actions, sync status, browser launch, startup, reminder preview and Exit live behind that gear; the calendar view has no footer-control strip.
 
-Bounds, fonts, and painted controls scale together with the popup's window DPI: the requested 120 and 144 DPI sizes are 430 × 840 and 516 × 1008 physical pixels. Place the popup near the pointer, generally above it, and keep it within that monitor's working area. If the working area is smaller than the natural panel, constrain the viewport and allow scrolling rather than shrinking the text. The setup dialog independently scales its 472 × 374 logical client area and controls using its actual window DPI.
+Calendar, settings and OAuth editor share the same native window and natural size. Bounds, fonts and paint scale together with its actual DPI: requested 120 and 144 DPI dimensions are 860 × 475 and 1032 × 570 physical pixels. Anchor the flyout to the pinned date when located, otherwise near the pointer, and constrain it to the monitor's working area. On a smaller work area, retain legible text and allow scrolling.
 
 ## Elevation & Depth
 
-The native ToolStripDropDown supplies the popup shadow. Interior surfaces remain flat; hover fill, today's solid circle, and the selected date's outline communicate state. Avoid decorative cards or additional shadow layers within this small surface.
+The native borderless Form supplies the flyout's shell shadow and requests Windows rounded corners. A fine vertical rule separates the two panes. Event cards use a distinct surface and thin border without shadows. Hover fill, today's solid circle, the selected date's outline and visible focus cues communicate interaction without stacking decorative depth.
 
 ## Shapes
 
-Keep the icon's softly rounded paper (icon radius). The calendar uses a rectangular native popup, flat rectangular actions, simple chevrons, circular day highlights, and small circular event markers. The event list has no enclosing border; a selected row uses neutral hover fill. Keyboard focus remains visible on days, arrows and event rows.
+Keep the icon's softly rounded paper (icon radius). The calendar uses a native flyout, flat settings actions, simple chevrons, circular day highlights and raised event dots. Event cards have gently rounded corners (calendar-event-card radius) and remain separate within the borderless scrolling list. A selected or hovered card uses neutral hover fill. The gear becomes a close symbol while settings are open; keyboard focus remains visible on all custom controls.
 
 ## Components
 
@@ -123,53 +150,61 @@ Update the icon at local midnight, after a time change, after sleep, and on repe
 
 ### Calendar popup
 
-The native ToolStripDropDown is an auto-closing tool window, with WS_EX_TOOLWINDOW and without WS_EX_APPWINDOW. Escape, an outside click, focus loss, or another icon command dismisses it. Opening it returns selection and displayed month to today. The header continues to show today's date while the user browses other dates.
+The calendar is a reusable native Form with WS_EX_TOOLWINDOW and without WS_EX_APPWINDOW. Calendar, settings and OAuth editing share that one window handle; nested dropdowns and modal setup windows are obsolete. Outside activation or another date-icon command hides the flyout. Escape returns from settings or the editor before dismissing the calendar. Reopening the calendar returns selection and displayed month to today; an unfinished editor retains its input across hiding and reopening. The date header continues to show today while the user browses other dates.
 
 Previous/next arrows switch months; Page Up/Page Down do the same. The grid always starts on Monday and includes muted adjacent-month dates. Today has a filled accent circle; another selected date has an accent outline. Hover adds a neutral circle, and weekends retain a distinct text color. Arrow keys move day selection; Home or the Сегодня button returns to today. Selecting a date does not change the taskbar icon.
 
-The Открыть Google Calendar button uses a solid accent fill and closes the popup before opening Google Calendar in the default browser. Settings.cmd and the Start menu settings shortcut retain the separate native startup/exit menu.
+The gear opens a two-column settings page in place. Actions are flat, left-aligned rows with neutral hover fills; sign-in when needed and disconnect use accent ink. A small accent dot on the gear signals refresh failure or renewed-sign-in requirements. Открыть Google Calendar hides the flyout before opening the default browser. Startup, reminder preview and Exit remain available in settings, also reached through Settings.cmd or the Start menu settings shortcut.
 
 ### Google events
 
-A 3px logical dot below a day number signals available events. It uses accent ink, or on-accent ink inside today's filled circle. The selected-date heading adds the event count when nonzero. Selection updates the list without changing today's header or taskbar date.
+A small dot below a day number signals events from the account's readable calendars. It is raised clear of the cell's lower edge and uses accent ink, or on-accent ink inside today's filled circle. The selected-date heading adds the event count when nonzero. Selection updates the right pane without changing today's header or taskbar date.
 
-Event rows are 54 logical pixels high, with a secondary time or all-day label above a single-line title. Long text ends with an ellipsis; a tooltip exposes the full time and title. The list scrolls independently. Click or Enter opens an event's Google Calendar browser link and dismisses the popup; rows without a usable link use secondary title ink. Times follow the Windows time zone.
+Event rows are 92 logical pixels high. Each card has 12px horizontal padding: a 9pt accent time or all-day label begins 7px below the card top, a 10pt bold title begins at 27px and wraps within a 34px two-line area, and 9pt source-calendar metadata begins at 64px. Long titles end with an ellipsis; the tooltip exposes full time, title and calendar. Click or Enter opens a usable Google Calendar event link and hides the flyout; unavailable links use secondary title ink. Times follow the Windows time zone. Refresh preserves the selected card and scroll position when its event remains present.
 
-Connection state changes the existing event area and action labels without rearranging the panel:
+Connection state updates the event area and settings actions without rearranging the two panes:
 
 | State | Event area and status | Actions |
 | --- | --- | --- |
-| Disconnected | Invitation to connect the primary calendar; month grid remains usable | Войти в Google |
+| Disconnected | Invitation to connect Google calendars; month grid remains usable | Войти в Google in settings |
 | Loading | Loading message, with any retained snapshot still available | Duplicate refresh disabled |
 | Connected | Selected day's events, or an explicit no-meetings message for an empty day | Сменить аккаунт, Обновить, Отключить |
 | Offline | Retained events with a no-connection message and last-update time | Existing connection actions remain available |
-| Sign-in required | Expired or revoked access message; any retained snapshot is identified by its update time | Войти в Google and Отключить; refresh disabled |
+| Sign-in required | Sign-in or permission message; any retained snapshot is identified by its update time | Attention dot on gear; Войти в Google and Отключить; refresh disabled |
 | Browser authorization pending | Instruction to finish sign-in in the browser | Отмена входа; refresh and disconnect disabled |
 
 Refreshing stays asynchronous. Switching month or account must not allow a late response to replace the current view. Disconnecting clears the displayed account data immediately before attempting remote revocation; its transient status reports progress or a failure to finish. Cached data must never appear as a newly confirmed empty calendar.
 
-### Google setup
+### Inline Google setup
 
-The first connection opens a native fixed tool window with no taskbar button. It reuses the calendar surface, text, hover and accent roles: two labeled fields, a setup-guide link, a muted storage explanation, neutral Отмена and accent Продолжить actions. The optional Client secret field is password-masked. The guide explains the user's Desktop OAuth client prerequisite; account authorization then opens in the default browser. Reopening the popup during authorization exposes the pending state and cancellation action. Setup instructions live in GOOGLE_SETUP.md.
+Подключение replaces the calendar/settings content inside the same flyout. Client ID and password-masked Client secret fields occupy the left and right columns. A guide link, storage explanation and inline error text accompany neutral Назад and accent-filled Сохранить actions. Leaving the secret blank retains the stored secret for the same Client ID. The editor clears its fields on explicit back or successful save, while merely hiding the flyout preserves unfinished input. Repeated setup or sign-in commands reveal that existing editor. Background commands remain invisible.
 
-Setup opens after the dropdown click finishes. While setup is open, another date, sign-in or setup command brings that same dialog forward, restores it if minimized, and preserves unsaved input. A separate interactive launch can also reveal it; background commands remain invisible. Closing with X or Отмена allows a later attempt to open setup again.
+Account authorization opens in the default browser. Reopening settings during authorization exposes pending status and Отмена входа. Setup instructions live in GOOGLE_SETUP.md; the older standalone setup-dialog captures describe a superseded surface.
+
+### Reminder accent
+
+Honor each Google event's popup-notification timing, including inherited calendar defaults and explicit overrides. A due reminder adds a small badge and a restrained breathing outline over the pinned date, with a 1.8-second cycle. The overlay passes clicks through, never activates, and adds no taskbar button. It does not rewrite the ICO or invalidate Explorer's icon cache.
+
+Pending reminders persist in current-user DPAPI-encrypted state, including across restart, until the user clicks the date to acknowledge them. A later configured reminder can trigger again. Reduced-motion settings or High Contrast produce a static accent instead of animation; High Contrast uses the system highlight color. Проверить напоминание previews the same attention treatment until acknowledged.
 
 ### Verification evidence
 
-The native self-test report covers calendar state, keyboard controls, action dispatch, tool-window styles, working-area placement, and requested DPI geometry. Synthetic HTTP and UI tests exercise event pagination, refresh and sign-in failures, cached offline data, account changes, event-link dispatch and rendered states. They do not establish successful authorization or data retrieval from a real Google account. That check awaits the user's Desktop client described in GOOGLE_SETUP.md.
+All 201 native self-test checks pass, covering calendar state, keyboard controls, action dispatch, single-window navigation, tool-window styles, working-area placement and requested DPI geometry. Synthetic HTTP and UI tests cover multi-calendar loading, permission and refresh failures, cached offline data, account changes and event-link dispatch. Reminder tests cover notification defaults/overrides, timing, encrypted pending-state persistence, acknowledgement, click-through styles and absence of ICO rewrites.
 
-The current event captures are artifacts/google-events-{light,dark}-{96,120,144}.png. Additional artifacts/google-events-{offline,empty,loading,signin,authorizing}.png show state treatments; artifacts/calendar-light.png shows the disconnected panel, and artifacts/google-setup.png shows setup at the actual monitor DPI. These captures show the expanded layout with unclipped controls; the event samples are synthetic. Requested-DPI renders do not establish correct transitions between real monitors with different scaling.
+Current light/dark captures at requested 96, 120 and 144 DPI are artifacts/google-events-{light,dark}-{96,120,144}.png, artifacts/calendar-settings-{light,dark}-{96,120,144}.png and artifacts/calendar-client-{light,dark}-{96,120,144}.png. They show the two-pane event view, inline settings and inline editor; fixture events are synthetic and editor fields are blank. artifacts/reminder-animation-frames.png illustrates the accent cycle. Requested-DPI renders do not establish real mixed-monitor transitions.
 
-Two modal-recovery test rounds cover raising setup above another app-owned window, restoring it with unsaved synthetic input, avoiding duplicate dialogs, and reopening after X or cancellation. artifacts/google-setup-recovered.png preserves the same 120 DPI layout with public synthetic input and a blank secret field. An installed separate-launch probe confirmed that the existing dialog became the OS foreground window without duplication or an app-window style.
-
-The current installed build is captured at the user's actual 120 DPI in artifacts/calendar-installed.png; artifacts/taskbar-google-calendar-open.png confirms that the date icon has no running underline while the popup is open. Native inspection confirms a visible tool window without an app-window style, one installed process, a preserved pin, and an enabled startup shortcut targeting the installed executable with --background. The Google extension was also exercised through that actual startup shortcut: one ready hidden host, then repeat launches opening and dismissing the popup in the same process. Launch through the real Explorer broker; a temporary PowerShell parent previously reproduced a generic taskbar icon after it exited. Actual pinned-icon rollover after real midnight remains unverified.
+Installed checks in artifacts/VerifyCurrentUi.ps1 confirm one hidden startup process, retained pin and enabled startup, a real account's selected-day event retrieval, and the 860 × 475 flyout at the user's actual 120 DPI. Calendar, settings, editor and repeated setup use the same window handle without an app-window style. The real reminder preview in artifacts/installed-reminder-accent.png is centered on the pinned date; native checks confirm click-through/non-activating styles, unchanged foreground window and ICO timestamp, and a date click hiding the accent while opening the calendar. Future Google event delivery at its real wall-clock reminder time, mixed-monitor transitions and pinned-icon rollover after real midnight remain unverified.
 
 ## Do's and Don'ts
 
 - **Do** preserve the established icon geometry, palette, large glyphs, and executable identity.
 - **Do** keep theme contrast, distinct today/selection states, keyboard focus, and readable scaled labels.
+- **Do** keep meetings to the right of the calendar with clearly separated cards and source-calendar labels.
+- **Do** keep connection, startup and exit controls behind the gear inside the same flyout.
 - **Do** keep background startup invisible and the popup transient.
 - **Do** distinguish an empty day from loading, offline data and a request to sign in again.
+- **Do** preserve pending reminder attention until a date click and respect Windows motion preferences.
 - **Don't** add a separate taskbar button or running-app indicator for the popup.
+- **Don't** animate by rewriting the pinned date icon or rebuild separate modal setup windows.
 - **Don't** treat rendered DPI samples as proof of real mixed-monitor behavior or real-midnight rollover.
 - **Don't** present synthetic events or authorization tests as a verified real-account connection.
