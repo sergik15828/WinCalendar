@@ -12,6 +12,10 @@ namespace WinCalendar
     internal sealed class PreferencesEditor : UserControl, IMessageFilter
     {
         private readonly Panel viewport, content;
+        private readonly List<Panel> pages = new List<Panel>();
+        private readonly List<Button> tabs = new List<Button>();
+        private int selectedPage;
+        private bool? theme;
         private readonly CheckedListBox calendars;
         private readonly ComboBox color, sound, strength, language, frequency;
         private readonly CheckBox audio, quiet, privacy, nextTip, weatherWidget, startup, paydayEnabled;
@@ -32,10 +36,12 @@ namespace WinCalendar
         internal event EventHandler BackRequested, CloseRequested, ConnectionRequested, ReminderPreviewRequested, CatalogRefreshRequested;
         internal event Action<AppPreferences> SaveRequested;
         internal AppPreferences Draft { get { return draft; } }
-        internal Size NaturalSize { get { return new Size(Scale(760), Scale(680)); } }
+        internal Size NaturalSize { get { return new Size(Scale(720), Scale(460)); } }
+        internal int SelectedPage { get { return selectedPage; } }
         internal Button ConnectionButton { get { return connection; } }
         internal Button BackButton { get { return back; } }
         internal bool LayoutFits { get { return bounds.Keys.All(c => c == content || c.Parent.ClientRectangle.Contains(c.Bounds)); } }
+        internal string LayoutIssues { get { return String.Join("; ", bounds.Keys.Where(c => c != content && !c.Parent.ClientRectangle.Contains(c.Bounds)).Select(c => c.GetType().Name + " " + c.Text + " " + c.Bounds + " in " + c.Parent.ClientRectangle)); } }
         internal int ScrollOffset { get { return -viewport.AutoScrollPosition.Y; } }
         internal Bitmap CaptureFrame()
         {
@@ -55,13 +61,13 @@ namespace WinCalendar
 
         internal PreferencesEditor()
         {
-            AutoScaleMode = AutoScaleMode.None; Size = new Size(760, 680);
+            AutoScaleMode = AutoScaleMode.None; Size = new Size(720, 460);
             title = Label(this, UiText.Get("Параметры"), new Rectangle(20, 14, 660, 34)); title.Tag = "heading";
             Label version = Label(this, "WinCalendar · " + typeof(PreferencesEditor).Assembly.GetName().Version.ToString(3), new Rectangle(20, 44, 500, 16)); version.Tag = "muted";
-            close = new CalendarSymbolButton { Bounds = new Rectangle(708, 16, 32, 32), IsClose = true, AccessibleName = UiText.Get("Закрыть календарь") };
+            close = new CalendarSymbolButton { Bounds = new Rectangle(668, 16, 32, 32), IsClose = true, AccessibleName = UiText.Get("Закрыть календарь") };
             close.Click += delegate { if (CloseRequested != null) CloseRequested(this, EventArgs.Empty); }; Controls.Add(close);
-            viewport = new BufferedPanel { Bounds = new Rectangle(20, 64, 720, 542), AutoScroll = true, TabStop = false };
-            content = new BufferedPanel { Bounds = new Rectangle(0, 0, 696, 1410) };
+            viewport = new BufferedPanel { Bounds = new Rectangle(20, 112, 680, 276), AutoScroll = true, TabStop = false };
+            content = new BufferedPanel { Bounds = new Rectangle(0, 0, 680, 276) };
             viewport.Controls.Add(content); Controls.Add(viewport);
             Panel general = Section(UiText.Get("Основное"), new Rectangle(0, 0, 336, 264));
             Label(general, UiText.Get("Язык интерфейса"), new Rectangle(0, 32, 312, 22));
@@ -144,13 +150,50 @@ namespace WinCalendar
             connection = Action(account, UiText.Get("Настроить подключение"), new Rectangle(360, 42, 312, 34));
             connection.Click += delegate { if (ConnectionRequested != null) ConnectionRequested(this, EventArgs.Empty); };
 
-            error = Label(this, "", new Rectangle(132, 626, 380, 34)); error.AutoEllipsis = true;
-            back = Action(this, UiText.Get("Назад"), new Rectangle(20, 626, 96, 34));
-            save = Action(this, UiText.Get("Сохранить"), new Rectangle(536, 626, 204, 34)); save.Tag = "primary";
+            AddPage(UiText.Get("Основное"), general, pinned);
+            AddPage(UiText.Get("Напоминания"), reminder);
+            AddPage(UiText.Get("Звук"), sounds, silence);
+            AddPage(UiText.Get("Зарплата"), salary);
+            AddPage(UiText.Get("Календари"), sources, account);
+            general.Location = Point.Empty;
+            pinned.Bounds = new Rectangle(344, 0, 336, 196);
+            pinned.Controls.OfType<Label>().First(c => Object.Equals(c.Tag, "section")).Width = 336;
+            pinned.Controls.OfType<Label>().First(c => c.Top == 42).Bounds = new Rectangle(0, 32, 330, 62);
+            shortcut.Bounds = new Rectangle(0, 100, 312, 30);
+            pinned.Controls.OfType<Label>().First(c => c.Top == 88).Bounds = new Rectangle(0, 138, 330, 54);
+            account.Bounds = new Rectangle(344, 236, 336, 40);
+            foreach (Label label in account.Controls.OfType<Label>().ToArray()) { account.Controls.Remove(label); label.Dispose(); }
+            connection.Bounds = new Rectangle(0, 0, 312, 34);
+            reminder.Bounds = new Rectangle(0, 0, 680, 264);
+            reminder.Controls.OfType<Label>().First(c => c.Top == 168).Bounds = new Rectangle(344, 36, 312, 22);
+            strength.Bounds = new Rectangle(344, 66, 312, 30);
+            visualPreview.Bounds = new Rectangle(344, 112, 312, 34);
+            sounds.Location = Point.Empty; silence.Location = new Point(344, 0);
+            salary.Location = sources.Location = Point.Empty;
+            salary.Width = sources.Width = 680;
+            foreach (Panel section in new[] { salary, sources })
+                foreach (Control child in section.Controls)
+                { if (child.Left >= 360) child.Left -= 16; if (Object.Equals(child.Tag, "section")) child.Width = section.Width; }
+
+            error = Label(this, "", new Rectangle(132, 406, 340, 34)); error.AutoEllipsis = true;
+            back = Action(this, UiText.Get("Назад"), new Rectangle(20, 406, 96, 34));
+            save = Action(this, UiText.Get("Сохранить"), new Rectangle(496, 406, 204, 34)); save.Tag = "primary";
+            viewport.TabIndex = 5; back.TabIndex = 6; save.TabIndex = 7; close.TabIndex = 8;
             back.Click += delegate { if (BackRequested != null) BackRequested(this, EventArgs.Empty); };
             save.Click += delegate { Collect(); if (SaveRequested != null) SaveRequested(draft); };
             foreach (Control control in CalendarPanel.Descendants(this)) if (!(control.Parent is NumericUpDown)) bounds[control] = control.Bounds;
             SetDpi(96); Application.AddMessageFilter(this);
+        }
+
+        private void AddPage(string text, params Panel[] sections)
+        {
+            int index = pages.Count;
+            Panel page = new BufferedPanel { Bounds = new Rectangle(0, 0, 680, 276), Visible = index == 0 };
+            content.Controls.Add(page); foreach (Panel section in sections) page.Controls.Add(section); pages.Add(page);
+            Button tab = Action(this, text, new Rectangle(20 + index * 136, 68, 136, 32));
+            tab.AccessibleRole = AccessibleRole.PageTab; tab.TabIndex = index;
+            tab.Click += delegate { ShowPage(index); };
+            tabs.Add(tab);
         }
 
         internal void BeginEdit(AppPreferences value)
@@ -164,7 +207,7 @@ namespace WinCalendar
             eventTiming.Checked = draft.ReminderTiming == 0; fiveMinutes.Checked = draft.ReminderTiming == 1; twoMinutes.Checked = draft.ReminderTiming == 2;
             paydayEnabled.Checked = draft.PaydayEnabled; frequency.SelectedIndex = draft.PaydayFrequency == 2 ? 1 : 0; firstDay.Value = draft.PaydayFirst; secondDay.Value = draft.PaydaySecond;
             volumeLabel.Text = UiText.Get("Громкость · ") + volume.Value + "%"; error.Text = "";
-            loading = false; if (calendars.Items.Count > 0) calendars.SelectedIndex = 0; LoadCalendarColor(); UpdateSalaryPreview(); ScrollTo(0);
+            loading = false; if (calendars.Items.Count > 0) calendars.SelectedIndex = 0; LoadCalendarColor(); UpdateSalaryPreview(); ShowPage(0);
         }
         private void UpdateSalaryPreview()
         {
@@ -195,8 +238,12 @@ namespace WinCalendar
             foreach (CalendarChoice item in values) calendars.Items.Add(item, !draft.DisabledCalendars.Contains(item.Id));
             loading = false; if (calendars.Items.Count > 0) calendars.SelectedIndex = 0; LoadCalendarColor();
         }
-        internal void ShowPage(int index) { ScrollTo(index == 0 ? 808 : index == 1 ? 288 : 0); }
-        internal void ScrollTo(int logicalY) { viewport.AutoScrollPosition = new Point(0, Scale(logicalY)); }
+        internal void ShowPage(int index)
+        {
+            selectedPage = Math.Max(0, Math.Min(pages.Count - 1, index));
+            for (int i = 0; i < pages.Count; i++) pages[i].Visible = i == selectedPage;
+            viewport.AutoScrollPosition = Point.Empty; ApplyColors(theme);
+        }
         internal void SetDpi(int value, bool? dark = null)
         {
             if (dpi != value)
@@ -216,12 +263,12 @@ namespace WinCalendar
                 if (oldDpi > 0) viewport.AutoScrollPosition = new Point(0, (int)(-scroll.Y * (double)dpi / oldDpi));
                 if (oldBody != null) oldBody.Dispose(); if (oldHeading != null) oldHeading.Dispose(); if (oldSection != null) oldSection.Dispose();
             }
-            ApplyColors(dark);
+            theme = dark; ApplyColors(dark);
         }
         protected override void OnResize(EventArgs e) { base.OnResize(e); if (viewport != null && dpi > 0) LayoutFrame(); }
         private void LayoutFrame()
         {
-            viewport.Bounds = new Rectangle(Scale(20), Scale(64), Math.Max(100, Width - Scale(40)), Math.Max(80, Height - Scale(138)));
+            viewport.Bounds = new Rectangle(Scale(20), Scale(112), Math.Max(100, Width - Scale(40)), Math.Max(80, Height - Scale(184)));
             back.Top = save.Top = error.Top = Height - Scale(54); save.Left = Width - Scale(224); close.Left = Width - Scale(52);
             error.Width = Math.Max(0, save.Left - error.Left - Scale(12));
             title.Width = Math.Max(80, Width - Scale(100));
@@ -238,6 +285,12 @@ namespace WinCalendar
                 if (Object.Equals(c.Tag, "primary")) { c.BackColor = palette.Accent; c.ForeColor = palette.OnAccent; }
             }
             close.Palette = palette; error.ForeColor = palette.Accent;
+            for (int i = 0; i < tabs.Count; i++)
+            {
+                tabs[i].BackColor = i == selectedPage ? palette.Hover : palette.Surface;
+                tabs[i].ForeColor = i == selectedPage ? palette.Accent : palette.Secondary;
+                tabs[i].AccessibleDescription = i == selectedPage ? UiText.Get("Выбрано") : null;
+            }
         }
         private Panel Section(string title, Rectangle area)
         { Panel panel = new BufferedPanel { Bounds = area }; content.Controls.Add(panel); Label label = Label(panel, title, new Rectangle(0, 0, area.Width, 28)); label.Tag = "section"; return panel; }
@@ -258,7 +311,15 @@ namespace WinCalendar
             viewport.AutoScrollPosition = new Point(-viewport.AutoScrollPosition.X, Math.Max(0, -viewport.AutoScrollPosition.Y - notches * step)); return true;
         }
         protected override bool ProcessCmdKey(ref Message msg, Keys key)
-        { if (key == Keys.Escape) { if (BackRequested != null) BackRequested(this, EventArgs.Empty); return true; } return base.ProcessCmdKey(ref msg, key); }
+        {
+            if ((key == Keys.Left || key == Keys.Right) && tabs.Any(tab => tab.Focused))
+            {
+                ShowPage((selectedPage + (key == Keys.Right ? 1 : tabs.Count - 1)) % tabs.Count);
+                tabs[selectedPage].Focus(); return true;
+            }
+            if (key == Keys.Escape) { if (BackRequested != null) BackRequested(this, EventArgs.Empty); return true; }
+            return base.ProcessCmdKey(ref msg, key);
+        }
         protected override void Dispose(bool disposing)
         { if (disposing) Application.RemoveMessageFilter(this); base.Dispose(disposing); if (disposing) { if (body != null) body.Dispose(); if (heading != null) heading.Dispose(); if (sectionFont != null) sectionFont.Dispose(); } }
         private sealed class BufferedPanel : Panel { internal BufferedPanel() { DoubleBuffered = true; } }

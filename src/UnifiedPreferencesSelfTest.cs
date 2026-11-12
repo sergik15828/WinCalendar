@@ -36,21 +36,23 @@ namespace WinCalendar
                     IntPtr handle = popup.Handle; Size calendarSize = popup.Bounds.Size;
                     popup.Panel.SettingsButton.PerformClick();
                     check(popup.PreferencesVisible && popup.Handle == handle && popup.Bounds.Height > calendarSize.Height,
-                        "Gear opens the unified spacious preferences page in the existing window");
+                        "Gear opens compact tabbed preferences in the existing window");
                     PreferencesEditor editor = popup.PreferencesPage;
-                    Rectangle footer = editor.BackButton.Bounds; editor.ScrollTo(808);
-                    check(editor.ScrollOffset > 0 && editor.BackButton.Bounds == footer && editor.LayoutFits,
-                        "Unified preferences scroll their sections while keeping footer actions fixed and all controls in bounds");
-                    editor.ScrollTo(0);
+                    Rectangle footer = editor.BackButton.Bounds;
+                    bool pagesFit = true;
+                    for (int page = 0; page < 5; page++) { editor.ShowPage(page); pagesFit &= editor.SelectedPage == page && editor.LayoutFits && editor.ScrollOffset == 0; }
+                    check(pagesFit && editor.BackButton.Bounds == footer && editor.NaturalSize.Height < 600,
+                        "Five compact preference tabs fit without scrolling and keep footer actions fixed");
+                    editor.ShowPage(2);
                     ComboBox chime = CalendarPanel.Descendants(editor).OfType<ComboBox>().Single(c => c.AccessibleName == "Мелодия напоминания");
                     int selection = chime.SelectedIndex;
                     Panel viewport = editor.Controls.OfType<Panel>().Single(c => c.AutoScroll);
                     editor.PointerPosition = () => viewport.PointToScreen(new Point(20, 20));
                     Message wheel = Message.Create(chime.Handle, 0x20a, new IntPtr(-120L << 16), IntPtr.Zero);
                     bool routed = editor.PreFilterMessage(ref wheel);
-                    check(routed && chime.SelectedIndex == selection && (SystemInformation.MouseWheelScrollLines == 0 || editor.ScrollOffset > 0),
-                        "Scrolling over preferences routes to the page without accidentally changing a sound choice");
-                    editor.ScrollTo(566);
+                    check(routed && chime.SelectedIndex == selection && editor.ScrollOffset == 0,
+                        "Mouse wheel over compact preferences does not accidentally change a sound choice");
+                    editor.ShowPage(3);
                     CalendarPanel.Descendants(editor).OfType<CheckBox>().Single(c => c.Text == "Показывать дни до зарплаты").Checked = false;
                     editor.Controls.OfType<Button>().Single(c => c.Text == "Сохранить").PerformClick();
                     check(!badge.Visible && !popup.PreferencesVisible && popup.Handle == handle && popup.Bounds.Size == calendarSize,
@@ -84,17 +86,16 @@ namespace WinCalendar
                         options.Calendars.Add(new CalendarChoice { Id = "fixture-a", Name = "Team", Color = "#2563A6" });
                         options.Calendars.Add(new CalendarChoice { Id = "fixture-b", Name = "Personal", Color = "#7950B3" });
                         popup.PreferencesPage.BeginEdit(options); popup.PreferencesPage.SetDpi(dpi, dark); popup.ViewWindow.ClientSize = popup.PreferencesPage.NaturalSize;
-                        using (Bitmap sheet = new Bitmap(popup.PreferencesPage.Width, popup.PreferencesPage.Height * 3))
+                        using (Bitmap sheet = new Bitmap(popup.PreferencesPage.Width, popup.PreferencesPage.Height * 5))
                         using (Graphics g = Graphics.FromImage(sheet))
                         {
-                            int[] scroll = { 0, 566, 1260 };
-                            for (int i = 0; i < scroll.Length; i++)
+                            for (int i = 0; i < 5; i++)
                             {
-                                popup.PreferencesPage.ScrollTo(scroll[i]);
+                                popup.PreferencesPage.ShowPage(i);
                                 using (Bitmap image = popup.PreferencesPage.CaptureFrame())
                                     g.DrawImageUnscaled(image, 0, i * image.Height);
                             }
-                            sheet.Save(Path.Combine(directory, "settings-unified-" + locale + "-" + (dark ? "dark" : "light") + "-" + dpi + ".png"));
+                            sheet.Save(Path.Combine(directory, "settings-tabs-" + locale + "-" + (dark ? "dark" : "light") + "-" + dpi + ".png"));
                         }
                     }
                 }

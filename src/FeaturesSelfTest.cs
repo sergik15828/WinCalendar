@@ -172,7 +172,7 @@ namespace WinCalendar
                     {
                         popup.PreferencesPage.ShowPage(page); popup.PreferencesPage.SetDpi(dpi, dark);
                         check(popup.PreferencesPage.LayoutFits,
-                            "Preferences page " + page + " controls fit at " + dpi + " DPI, dark=" + dark);
+                            "Preferences page " + page + " controls fit at " + dpi + " DPI, dark=" + dark + " " + popup.PreferencesPage.LayoutIssues);
                         Save(popup.PreferencesPage, directory, "features-settings-" + page + "-" + (dark ? "dark" : "light") + "-" + dpi + ".png");
                     }
                     popup.ShowCalendarSettings(); popup.Panel.ShowSettings(false);

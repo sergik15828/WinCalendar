@@ -105,7 +105,7 @@ namespace WinCalendar
             { "Дата рядом с погодой — открыть WinCalendar", "Date beside weather — open WinCalendar" }, { " — открыть WinCalendar", " — open WinCalendar" },
             { "Звук", "Sound" }, { "Вид", "Appearance" }, { "Язык и размещение", "Language and position" },
             { "Язык интерфейса", "Interface language" }, { "Виджет рядом с погодой", "Widget beside weather" },
-            { "Основное", "General" }, { "Анимация значка", "Icon animation" }, { "Зарплата", "Payday" }, { "зарплата", "payday" }, { "до зарплаты", "until payday" },
+            { "Выбрано", "Selected" }, { "Основное", "General" }, { "Анимация значка", "Icon animation" }, { "Зарплата", "Payday" }, { "зарплата", "payday" }, { "до зарплаты", "until payday" },
             { "Подключение аккаунта и обновление встреч", "Account connection and meeting refresh" },
             { "Включить тихие часы", "Enable quiet hours" },
             { "Звук выключен, а иконка продолжает\nподпрыгивать. Одинаковое время —\nтишина весь день. Прослушивание\nработает вручную.", "Sound is muted; the icon still bounces.\nEqual times mute the whole day.\nManual sound preview still plays." },

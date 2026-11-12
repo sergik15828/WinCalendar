@@ -225,7 +225,7 @@ namespace WinCalendar
                     IntPtr original = popup.Handle;
                     popup.Panel.SettingsButton.PerformClick();
                     check(popup.PreferencesVisible && popup.Handle == original, "Gear opens unified preferences inside the same flyout, round " + round);
-                    popup.PreferencesPage.ScrollTo(1260); popup.PreferencesPage.ConnectionButton.PerformClick();
+                    popup.PreferencesPage.ShowPage(4); popup.PreferencesPage.ConnectionButton.PerformClick();
                     popup.Panel.ConnectButton.PerformClick();
                     await Task.Delay(20);
                     check(popup.EditorVisible && popup.Handle == original && popup.Visible, "Sign-in opens client editor without another window or modal loop, round " + round);
