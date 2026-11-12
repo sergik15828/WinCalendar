@@ -58,11 +58,16 @@ namespace WinCalendar
             window.DismissRequested += delegate { Hide(); };
             window.Deactivate += delegate
             {
-                if (!window.Visible) return;
-                // Let a taskbar launch close the still-visible flyout itself;
-                // this avoids a hide/reopen race between Explorer and this app.
-                if (anchorArea.Contains(Cursor.Position) && (Control.MouseButtons & MouseButtons.Left) != 0) closeTimer.Start();
-                else Hide();
+                // Tooltip creation can temporarily change activation. Inspect
+                // the settled foreground window before dismissing the flyout.
+                window.BeginInvoke(new Action(delegate
+                {
+                    if (disposed || !window.Visible) return;
+                    uint process; GetWindowThreadProcessId(GetForegroundWindow(), out process);
+                    if (process == (uint)System.Diagnostics.Process.GetCurrentProcess().Id) return;
+                    if (anchorArea.Contains(Cursor.Position) && (Control.MouseButtons & MouseButtons.Left) != 0) closeTimer.Start();
+                    else Hide();
+                }));
             };
             window.VisibleChanged += delegate
             {
@@ -243,6 +248,8 @@ namespace WinCalendar
             if (google != null) google.Dispose(); lifetime.Dispose();
         }
 
+        [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
         [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr window);
 
         private sealed class CalendarFlyout : Form

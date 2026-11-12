@@ -21,7 +21,7 @@ namespace WinCalendar
         private readonly Label agendaHeading;
         private readonly CalendarEventList eventsList;
         private readonly Button connectButton, refreshButton, disconnectButton;
-        private readonly CalendarSymbolButton settingsButton;
+        private readonly CalendarSymbolButton settingsButton, closeButton;
         private readonly Panel settingsPage;
         private readonly CheckBox startupCheck;
         private readonly Button configureButton, previewButton, exitButton;
@@ -60,6 +60,7 @@ namespace WinCalendar
         internal Button DisconnectButton { get { return disconnectButton; } }
         internal CalendarEventList EventList { get { return eventsList; } }
         internal string StatusText { get { return syncStatus.Text; } }
+        internal Button CloseButton { get { return closeButton; } }
         internal Button SettingsButton { get { return settingsButton; } }
         internal bool SettingsVisible { get { return settingsVisible; } }
 
@@ -77,9 +78,12 @@ namespace WinCalendar
             State = new CalendarState(today);
             heading = LabelAt(new Rectangle(16, 10, 272, 32), headingFont);
             weekday = LabelAt(new Rectangle(16, 42, 272, 20), smallFont);
-            settingsButton = new CalendarSymbolButton { Bounds = new Rectangle(640, 16, 32, 32), AccessibleName = "Настройки", TabIndex = 0 };
+            settingsButton = new CalendarSymbolButton { Bounds = new Rectangle(600, 16, 32, 32), AccessibleName = "Настройки", TabIndex = 0 };
             settingsButton.Click += delegate { ShowSettings(!settingsVisible); };
             Controls.Add(settingsButton);
+            closeButton = new CalendarSymbolButton { Bounds = new Rectangle(640, 16, 32, 32), IsClose = true, AccessibleName = "Закрыть календарь", TabIndex = 8 };
+            closeButton.Click += delegate { if (DismissRequested != null) DismissRequested(this, EventArgs.Empty); };
+            Controls.Add(closeButton);
             month = LabelAt(new Rectangle(16, 68, 166, 28), monthFont);
             previous = new CalendarArrow(false) { Bounds = new Rectangle(260, 68, 32, 28), AccessibleName = "Предыдущий месяц", TabIndex = 2 };
             next = new CalendarArrow(true) { Bounds = new Rectangle(296, 68, 32, 28), AccessibleName = "Следующий месяц", TabIndex = 3 };
@@ -106,7 +110,7 @@ namespace WinCalendar
                     dayButtons[index] = button; Controls.Add(button);
                 }
             }
-            agendaHeading = LabelAt(new Rectangle(360, 16, 266, 28), monthFont);
+            agendaHeading = LabelAt(new Rectangle(360, 16, 226, 28), monthFont);
             agendaHeading.Text = "Встречи";
             selectedDate = LabelAt(new Rectangle(360, 48, 312, 24), smallFont);
             eventsList = new CalendarEventList { Bounds = new Rectangle(360, 86, 312, 278), Font = bodyFont, TabIndex = 5 };
@@ -117,7 +121,7 @@ namespace WinCalendar
             todayButton.Font = smallFont;
             todayButton.AccessibleName = "Перейти к сегодняшней дате";
             todayButton.Click += delegate { State.GoToToday(); RenderState(false); };
-            calendarControls = Controls.Cast<Control>().Where(c => c != heading && c != weekday && c != settingsButton).ToList();
+            calendarControls = Controls.Cast<Control>().Where(c => c != heading && c != weekday && c != settingsButton && c != closeButton).ToList();
             settingsPage = new Panel { Bounds = new Rectangle(16, 70, 656, 294), Visible = false };
             Controls.Add(settingsPage);
             syncStatus = SettingsLabel(new Rectangle(0, 0, 312, 38), bodyFont);
@@ -213,8 +217,8 @@ namespace WinCalendar
             settingsVisible = show;
             foreach (Control control in calendarControls) control.Visible = !show;
             settingsPage.Visible = show;
-            settingsButton.IsClose = show;
-            settingsButton.AccessibleName = show ? "Закрыть настройки" : "Настройки";
+            settingsButton.IsClose = false;
+            settingsButton.AccessibleName = show ? "Вернуться к календарю" : "Настройки";
             RenderState(false);
             if (show && SettingsOpened != null) SettingsOpened(this, EventArgs.Empty);
         }
@@ -245,7 +249,7 @@ namespace WinCalendar
             selectedDate.ForeColor = palette.Secondary;
             emptyEvents.ForeColor = syncStatus.ForeColor = updatedStatus.ForeColor = reminderInfo.ForeColor = palette.Secondary;
             startupCheck.ForeColor = palette.Ink;
-            settingsButton.Palette = palette;
+            settingsButton.Palette = closeButton.Palette = palette;
             foreach (Button action in new[] { connectButton, refreshButton, disconnectButton, googleButton, configureButton, previewButton, exitButton })
             { action.ForeColor = palette.Ink; action.FlatAppearance.MouseOverBackColor = palette.Hover; }
             disconnectButton.ForeColor = palette.Accent;

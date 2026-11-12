@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Media;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -14,6 +15,7 @@ namespace WinCalendar
     internal sealed class ReminderOverlay : Form
     {
         private readonly System.Windows.Forms.Timer animation;
+        private readonly Action playSound;
         private readonly Stopwatch clock = new Stopwatch();
         private DateTime anchorChecked;
         private Rectangle locatedPin;
@@ -21,8 +23,11 @@ namespace WinCalendar
         internal bool Active { get { return active; } }
         protected override bool ShowWithoutActivation { get { return true; } }
 
-        internal ReminderOverlay()
+        internal ReminderOverlay() : this(delegate { SystemSounds.Asterisk.Play(); }) { }
+
+        internal ReminderOverlay(Action notificationSound)
         {
+            playSound = notificationSound;
             AutoScaleMode = AutoScaleMode.None; FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false; TopMost = true; StartPosition = FormStartPosition.Manual;
             animation = new System.Windows.Forms.Timer { Interval = 33 };
@@ -47,6 +52,8 @@ namespace WinCalendar
             if (active == enabled) return;
             active = enabled;
             if (!enabled) { animation.Stop(); Hide(); return; }
+            try { playSound(); }
+            catch (InvalidOperationException) { }
             int enabledMotion;
             motion = SystemParametersInfo(0x1042, 0, out enabledMotion, 0) && enabledMotion != 0 && !SystemInformation.HighContrast;
             animation.Interval = motion ? 33 : 1000;

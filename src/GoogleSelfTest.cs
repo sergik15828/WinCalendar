@@ -168,6 +168,7 @@ namespace WinCalendar
             check(nativeStore.Read(credentialName) == null, "Synthetic credential is removed after testing");
             await TestSetupRecoveryAsync(check, directory);
             CaptureEvents(directory, check);
+            await VerifyTooltipHoverAsync(check);
         }
 
         private static async Task TestAdditionalCalendarsAsync(Action<bool, string> check, TimeZoneInfo zone, string directory)
@@ -247,6 +248,32 @@ namespace WinCalendar
             }
         }
 
+        private static async Task VerifyTooltipHoverAsync(Action<bool, string> check)
+        {
+            using (CalendarPopup popup = new CalendarPopup(delegate { return new DateTime(2026, 11, 12); }, delegate { }, false))
+            {
+                popup.ShowAt(new Point(400, 500), Screen.PrimaryScreen.WorkingArea);
+                popup.Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Connected, HasSnapshot = true,
+                    Events = new List<CalendarEvent> { new CalendarEvent { Id = "hover-fixture", Title = "Синтетическая встреча для проверки подсказки", AllDay = true,
+                        Start = "2026-11-12", End = "2026-11-13", Url = "https://calendar.google.com/calendar/event?eid=hover-fixture" } } });
+                CalendarEventList list = popup.Panel.EventList;
+                bool tipShown = false;
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                ToolTip tip = (ToolTip)typeof(CalendarEventList).GetField("tooltip", flags).GetValue(list);
+                tip.Popup += delegate { tipShown = true; };
+                var move = typeof(CalendarEventList).GetMethod("OnMouseMove", flags);
+                move.Invoke(list, new object[] { new MouseEventArgs(MouseButtons.None, 0, list.Width / 2, 30, 0) });
+                for (int attempt = 0; attempt < 25 && !tipShown; attempt++) await Task.Delay(100);
+                check(tipShown && popup.Visible && list.Cursor == Cursors.Hand,
+                    "Native meeting tooltip appears without dismissing calendar or losing card hover");
+                move.Invoke(list, new object[] { new MouseEventArgs(MouseButtons.None, 0, list.Width / 2, 0, 0) });
+                check(list.Cursor == Cursors.Default && list.HitCard(new Point(list.Width / 2, 0)) == -1,
+                    "Pointer leaves the card in a row gap without keeping its clickable cursor");
+                popup.Panel.CloseButton.PerformClick();
+                check(!popup.Visible && !popup.ViewWindow.IsDisposed, "Header close button hides calendar while preserving its background host");
+            }
+        }
+
         private static void CaptureEvents(string directory, Action<bool, string> check)
         {
             DateTime today = new DateTime(2026, 11, 12);
@@ -271,6 +298,20 @@ namespace WinCalendar
                     list.OpenRequested += delegate(string url) { opened = url; };
                     list.Open(0);
                     check(opened == "https://calendar.google.com/calendar/event?eid=fixture3", "Clicking a meeting dispatches its Google Calendar event link");
+                    foreach (int scale in new[] { 96, 120, 144 })
+                    {
+                        list.Size = new Size(312 * scale / 96, 278 * scale / 96);
+                        list.SetEvents(events, today, TimeZoneInfo.Local, CalendarPalette.Create(false), scale);
+                        list.CreateControl();
+                        Rectangle row = list.GetItemRectangle(0);
+                        check(list.HitCard(new Point(row.Width / 2, row.Top + row.Height / 2)) == 0
+                            && list.HitCard(new Point(row.Width / 2, row.Top)) == -1
+                            && list.HitCard(new Point(row.Width / 2, row.Bottom - 1)) == -1
+                            && list.HitCard(new Point(row.Left, row.Top + 3 * scale / 96)) == -1
+                            && list.HitCard(new Point(-1, 10)) == -1,
+                            "Meeting hit target follows rounded card and excludes gaps at " + scale + " DPI");
+                    }
+
                 }
                 foreach (int dpi in new[] { 96, 120, 144 })
                 foreach (bool dark in new[] { false, true })

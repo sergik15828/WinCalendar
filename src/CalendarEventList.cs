@@ -17,24 +17,67 @@ namespace WinCalendar
         private int hovered = -1;
         internal event Action<string> OpenRequested;
 
+        private readonly Timer tooltipDelay = new Timer { Interval = 650 };
+        private Point pointer;
+
         internal CalendarEventList()
         {
             DrawMode = DrawMode.OwnerDrawVariable; BorderStyle = BorderStyle.None;
             IntegralHeight = false; AccessibleName = "Встречи выбранного дня";
-            MouseClick += delegate(object sender, MouseEventArgs args)
+            tooltip.UseAnimation = false; tooltip.UseFading = false; tooltip.ShowAlways = true;
+            tooltipDelay.Tick += delegate
             {
-                int index = IndexFromPoint(args.Location);
-                Cursor = index >= 0 && ((EventRow)Items[index]).Event.Url != null ? Cursors.Hand : Cursors.Default;
-                if (args.Button == MouseButtons.Left && index >= 0 && Rectangle.Inflate(GetItemRectangle(index), -1, -4).Contains(args.Location)) Open(index);
+                tooltipDelay.Stop();
+                if (hovered < 0 || !Visible || HitCard(pointer) != hovered) return;
+                tooltip.Show(Items[hovered].ToString(), this, pointer.X + Pixels(16), pointer.Y + Pixels(24), 8000);
             };
-            MouseMove += delegate(object sender, MouseEventArgs args)
+        }
+
+        private Rectangle CardBounds(Rectangle row)
+        { return new Rectangle(row.X + 1, row.Y + Pixels(3), row.Width - 3, row.Height - Pixels(8)); }
+
+        internal int HitCard(Point point)
+        {
+            if (!ClientRectangle.Contains(point)) return -1;
+            int index = IndexFromPoint(point);
+            if (index < 0) return -1;
+            using (GraphicsPath path = Rounded(CardBounds(GetItemRectangle(index)), Pixels(8)))
+                return path.IsVisible(point) ? index : -1;
+        }
+
+        protected override void OnMouseMove(MouseEventArgs args)
+        {
+            int index = HitCard(args.Location);
+            Cursor = index >= 0 && CalendarPage.SafeGoogleLink(((EventRow)Items[index]).Event.Url) != null ? Cursors.Hand : Cursors.Default;
+            if (hovered != index || pointer != args.Location)
             {
-                int index = IndexFromPoint(args.Location);
-                Cursor = index >= 0 && ((EventRow)Items[index]).Event.Url != null ? Cursors.Hand : Cursors.Default;
-                if (hovered != index) { hovered = index; Invalidate(); }
-                string text = index < 0 ? "" : Items[index].ToString();
-                if (tooltip.GetToolTip(this) != text) tooltip.SetToolTip(this, text);
-            };
+                tooltipDelay.Stop(); tooltip.Hide(this);
+                hovered = index; pointer = args.Location; Invalidate();
+                if (index >= 0) tooltipDelay.Start();
+            }
+            base.OnMouseMove(args);
+        }
+
+        protected override void OnMouseClick(MouseEventArgs args)
+        {
+            int index = HitCard(args.Location);
+            if (args.Button == MouseButtons.Left && index >= 0) Open(index);
+            base.OnMouseClick(args);
+        }
+
+        protected override void WndProc(ref Message message)
+        {
+            if (message.Msg == 0x201 || message.Msg == 0x203)
+            {
+                int packed = message.LParam.ToInt32();
+                if (HitCard(new Point((short)(packed & 0xffff), (short)(packed >> 16))) < 0) return;
+            }
+            base.WndProc(ref message);
+        }
+
+        private void ClearHover()
+        {
+            tooltipDelay.Stop(); tooltip.Hide(this); hovered = -1; Cursor = Cursors.Default; Invalidate();
         }
 
         internal void SetEvents(IEnumerable<CalendarEvent> events, DateTime day, TimeZoneInfo zone, CalendarPalette colors, int scaleDpi)
@@ -51,6 +94,7 @@ namespace WinCalendar
             string topKey = Items.Count > 0 ? ((EventRow)Items[top]).Identity : null;
             bool sameDay = contentKey != null && contentKey.StartsWith(day.ToString("yyyyMMdd"), StringComparison.Ordinal);
             contentKey = key;
+            ClearHover();
             BeginUpdate(); Items.Clear();
             Items.AddRange(rows);
             if (sameDay && Items.Count > 0)
@@ -72,7 +116,17 @@ namespace WinCalendar
             detailFont = new Font(Font.FontFamily, Font.Size * 0.9f, FontStyle.Regular, Font.Unit);
             if (oldTitle != null) oldTitle.Dispose(); if (oldDetail != null) oldDetail.Dispose();
         }
-        protected override void OnMouseLeave(EventArgs args) { hovered = -1; Invalidate(); base.OnMouseLeave(args); }
+        protected override void OnMouseLeave(EventArgs args)
+        {
+            // Native tooltip windows can report mouse-leave while the pointer
+            // still rests over this card. Keep its hover stable in that case.
+            if (HitCard(PointToClient(MousePosition)) < 0) ClearHover();
+            base.OnMouseLeave(args);
+        }
+        protected override void OnVisibleChanged(EventArgs args)
+        { if (!Visible) ClearHover(); base.OnVisibleChanged(args); }
+        protected override void OnMouseWheel(MouseEventArgs args)
+        { ClearHover(); base.OnMouseWheel(args); }
         protected override void OnDrawItem(DrawItemEventArgs args)
         {
             if (args.Index < 0 || palette == null) return;
@@ -80,7 +134,7 @@ namespace WinCalendar
             bool selected = (args.State & DrawItemState.Selected) != 0 || args.Index == hovered;
             Color background = selected ? palette.Hover : palette.EventSurface;
             using (Brush surface = new SolidBrush(palette.Surface)) args.Graphics.FillRectangle(surface, args.Bounds);
-            Rectangle card = new Rectangle(args.Bounds.X + 1, args.Bounds.Y + Pixels(3), args.Bounds.Width - 3, args.Bounds.Height - Pixels(8));
+            Rectangle card = CardBounds(args.Bounds);
             args.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (GraphicsPath path = Rounded(card, Pixels(8)))
             using (Brush fill = new SolidBrush(background))
@@ -117,7 +171,7 @@ namespace WinCalendar
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) tooltip.Dispose(); base.Dispose(disposing);
+            if (disposing) { tooltipDelay.Dispose(); tooltip.Dispose(); } base.Dispose(disposing);
             if (disposing) { if (titleFont != null) titleFont.Dispose(); if (detailFont != null) detailFont.Dispose(); }
         }
         private sealed class EventRow

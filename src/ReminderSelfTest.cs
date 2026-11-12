@@ -76,7 +76,8 @@ namespace WinCalendar
             finally { if (Directory.Exists(statePath)) Directory.Delete(statePath, true); }
 
             CaptureFrames(directory);
-            using (ReminderOverlay overlay = new ReminderOverlay())
+            int soundCount = 0;
+            using (ReminderOverlay overlay = new ReminderOverlay(delegate { soundCount++; }))
             {
                 long style = GetWindowLongPtr(overlay.Handle, -20).ToInt64();
                 check((style & 0x080800a0) == 0x080800a0 && (style & 0x40000) == 0 && !overlay.ShowInTaskbar,
@@ -84,7 +85,10 @@ namespace WinCalendar
                 check(SendMessage(overlay.Handle, 0x84, IntPtr.Zero, IntPtr.Zero).ToInt64() == -1, "Reminder hit test passes clicks to the pinned icon underneath");
                 DateTime iconWritten = File.Exists(ShellIntegration.IconPath) ? File.GetLastWriteTimeUtc(ShellIntegration.IconPath) : DateTime.MinValue;
                 Task anchor = TaskbarAnchor.RefreshAsync(); await Task.WhenAny(anchor, Task.Delay(4000));
-                overlay.SetActive(true); await Task.Delay(140); overlay.SetActive(false);
+                overlay.SetActive(true); await Task.Delay(140); overlay.SetActive(true);
+                check(soundCount == 1, "Reminder sounds once when its pulse starts, without repeating during animation");
+                overlay.SetActive(false); overlay.SetActive(true); overlay.SetActive(false);
+                check(soundCount == 2, "A new reminder pulse can sound again after acknowledgement");
                 check(!overlay.Active && !overlay.Visible, "Stopping a reminder removes its overlay immediately");
                 check(!File.Exists(ShellIntegration.IconPath) || File.GetLastWriteTimeUtc(ShellIntegration.IconPath) == iconWritten,
                     "Animation does not rewrite the pinned ICO or invalidate Explorer's icon cache");
