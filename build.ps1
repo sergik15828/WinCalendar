@@ -6,7 +6,7 @@ $compiler = Join-Path $framework 'csc.exe'
 if (!(Test-Path $compiler)) { throw 'The Windows .NET Framework C# compiler was not found.' }
 $output = Join-Path $root 'dist'
 New-Item -ItemType Directory -Force -Path $output | Out-Null
-$references = @('System.dll', 'System.Core.dll', 'System.Drawing.dll', 'System.Windows.Forms.dll', 'System.Xaml.dll') | ForEach-Object { '/reference:' + (Join-Path $framework $_) }
+$references = @('System.dll', 'System.Core.dll', 'System.Drawing.dll', 'System.Windows.Forms.dll', 'System.Xaml.dll', 'System.Net.Http.dll', 'System.Web.dll', 'System.Web.Extensions.dll', 'System.Security.dll') | ForEach-Object { '/reference:' + (Join-Path $framework $_) }
 $references += @('WindowsBase.dll', 'PresentationCore.dll', 'PresentationFramework.dll') | ForEach-Object { '/reference:' + (Join-Path $framework ('WPF\' + $_)) }
 $sources = @(Get-ChildItem (Join-Path $root 'src\*.cs') | ForEach-Object { $_.FullName })
 $common = @('/nologo', '/utf8output', '/codepage:65001', '/optimize+', '/platform:x64', '/warn:4', '/warnaserror+', '/target:winexe', ('/win32manifest:' + (Join-Path $root 'app.manifest')))

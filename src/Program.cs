@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -16,6 +17,7 @@ namespace WinCalendar
         internal const int ExitCommand = 3;
         internal const int MenuCommand = 4;
         internal const int OpenCalendarCommand = 5;
+        internal const int GoogleSetupCommand = 6;
         internal const string GoogleCalendarUrl = "https://calendar.google.com/calendar/";
 
         [STAThread]
@@ -56,6 +58,7 @@ namespace WinCalendar
                         {
                             if (command == OpenCalendarCommand) window.BeginInvoke(new Action(window.ToggleCalendar));
                             else if (command == MenuCommand) PostCommand(MenuCommand, Process.GetCurrentProcess().Id);
+                            else if (command == GoogleSetupCommand) PostCommand(GoogleSetupCommand, Process.GetCurrentProcess().Id);
                         };
                         Application.Run(window);
                     }
@@ -78,12 +81,32 @@ namespace WinCalendar
             if (argument == "--startup-off") return StartupOffCommand;
             if (argument == "--exit") return ExitCommand;
             if (argument == "--menu") return MenuCommand;
+            if (argument == "--google-setup") return GoogleSetupCommand;
             return -1;
         }
 
         internal static void OpenGoogleCalendar()
         {
-            Process.Start(new ProcessStartInfo(GoogleCalendarUrl) { UseShellExecute = true });
+            OpenBrowser(GoogleCalendarUrl);
+        }
+
+        internal static void OpenCalendarEvent(string url)
+        {
+            string safe = CalendarPage.SafeGoogleLink(url);
+            if (safe != null) OpenBrowser(safe);
+        }
+
+        internal static void OpenBrowser(string url)
+        {
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch (Win32Exception) { BrowserUnavailable(); }
+            catch (InvalidOperationException) { BrowserUnavailable(); }
+            catch (System.IO.FileNotFoundException) { BrowserUnavailable(); }
+        }
+
+        private static void BrowserUnavailable()
+        {
+            MessageBox.Show("Не удалось открыть браузер. Выберите приложение по умолчанию для HTTPS в параметрах Windows и повторите попытку.", "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         internal static bool PostCommand(int command, int targetProcess)

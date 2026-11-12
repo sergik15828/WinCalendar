@@ -23,11 +23,13 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Keep a minimized native host alive for the taskbar button and automatic date updates.
 - The user pins and reorders the application using Windows itself.
 - Calendar supports month navigation, Monday-first weeks, today and selected-day highlights, and a Today button. Selection does not change the taskbar date.
-- A button in the panel opens Google Calendar in the default browser. Google events and account integration remain planned.
+- A button in the panel opens Google Calendar in the default browser. Optional Google authorization reads one account's primary calendar; date dots and a selected-day list expose meetings and their browser links.
+- Use Desktop OAuth, PKCE, loopback callback, and calendar.events.readonly. Store client credentials and refresh session in Windows Credential Manager, access tokens in memory, and event snapshots with current-user DPAPI encryption. Users create their own Google Cloud Desktop client.
+- Render loading, empty, offline with cached events and update time, and renewed-sign-in states. Refresh asynchronously; stale month or account responses cannot replace the current view.
 - Escape, outside click, or another icon click closes the panel. Its native tool-window style must not add a running-app indicator.
 - Startup and Exit remain available through Settings.cmd and the Start menu settings shortcut.
 - Background startup must never open the calendar panel or browser.
-- Offline, no accounts or calendar service integration.
+- Date and month grid work offline without an account. Google data requires a network connection for refresh; retained snapshots remain available offline. No event editing or invitations.
 - Full exit stops date updates; startup is an explicit user choice.
 
 ## Brand commitments

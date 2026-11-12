@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -16,6 +17,11 @@ namespace WinCalendar
         private readonly CalendarArrow next;
         private readonly Button todayButton;
         private readonly Button googleButton;
+        private readonly Label selectedDate, emptyEvents, syncStatus, updatedStatus;
+        private readonly CalendarEventList eventsList;
+        private readonly Button connectButton, refreshButton, disconnectButton;
+        private CalendarViewData viewData = new CalendarViewData { Message = "Подключите Google, чтобы видеть встречи." };
+        private DateTime renderedMonth;
         private readonly Label[] weekLabels = new Label[7];
         private readonly CalendarDayButton[] dayButtons = new CalendarDayButton[42];
         private readonly Font headingFont = new Font("Segoe UI", 20, FontStyle.Bold);
@@ -27,21 +33,29 @@ namespace WinCalendar
         private readonly Dictionary<Control, Font> logicalFonts = new Dictionary<Control, Font>();
         private readonly List<Font> scaledFonts = new List<Font>();
         private int layoutDpi;
-        internal Size NaturalSize { get { return new Size(Pixels(344), Pixels(468)); } }
+        internal const int LogicalWidth = 344, LogicalHeight = 672;
+        internal Size NaturalSize { get { return new Size(Pixels(LogicalWidth), Pixels(LogicalHeight)); } }
         internal CalendarState State { get; private set; }
         internal event EventHandler GoogleRequested;
         internal event EventHandler DismissRequested;
+        internal event EventHandler RangeChanged, ConnectRequested, RefreshRequested, DisconnectRequested;
+        internal event Action<string> EventRequested;
         internal Button TodayButton { get { return todayButton; } }
         internal Button GoogleButton { get { return googleButton; } }
         internal Button NextButton { get { return next; } }
         internal Button PreviousButton { get { return previous; } }
+        internal Button ConnectButton { get { return connectButton; } }
+        internal Button RefreshButton { get { return refreshButton; } }
+        internal Button DisconnectButton { get { return disconnectButton; } }
+        internal CalendarEventList EventList { get { return eventsList; } }
+        internal string StatusText { get { return syncStatus.Text; } }
 
         internal CalendarPanel(DateTime today)
         {
             // Scale this hosted control explicitly; a dropdown has no Form to
             // coordinate automatic DPI scaling of its host, children and paint.
             AutoScaleMode = AutoScaleMode.None;
-            Size = new Size(344, 468);
+            Size = new Size(LogicalWidth, LogicalHeight);
             AutoScroll = true;
             AutoScrollMinSize = Size;
             Font = bodyFont;
@@ -76,10 +90,25 @@ namespace WinCalendar
                     dayButtons[index] = button; Controls.Add(button);
                 }
             }
-            todayButton = FooterButton("Сегодня", new Rectangle(16, 420, 72, 32), 3);
+            selectedDate = LabelAt(new Rectangle(16, 406, 312, 30), bodyFont);
+            eventsList = new CalendarEventList { Bounds = new Rectangle(16, 438, 312, 104), Font = bodyFont, TabIndex = 3 };
+            eventsList.OpenRequested += delegate(string url) { if (EventRequested != null) EventRequested(url); };
+            Controls.Add(eventsList);
+            emptyEvents = LabelAt(eventsList.Bounds, bodyFont);
+            syncStatus = LabelAt(new Rectangle(16, 546, 312, 20), smallFont);
+            syncStatus.AutoEllipsis = true;
+            updatedStatus = LabelAt(new Rectangle(16, 566, 312, 18), smallFont);
+            connectButton = FooterButton("Войти в Google", new Rectangle(16, 588, 128, 28), 4);
+            refreshButton = FooterButton("Обновить", new Rectangle(152, 588, 82, 28), 5);
+            disconnectButton = FooterButton("Отключить", new Rectangle(242, 588, 86, 28), 6);
+            connectButton.Font = refreshButton.Font = disconnectButton.Font = smallFont;
+            connectButton.Click += delegate { if (ConnectRequested != null) ConnectRequested(this, EventArgs.Empty); };
+            refreshButton.Click += delegate { if (RefreshRequested != null) RefreshRequested(this, EventArgs.Empty); };
+            disconnectButton.Click += delegate { if (DisconnectRequested != null) DisconnectRequested(this, EventArgs.Empty); };
+            todayButton = FooterButton("Сегодня", new Rectangle(16, 624, 72, 32), 7);
             todayButton.AccessibleName = "Перейти к сегодняшней дате";
             todayButton.Click += delegate { State.GoToToday(); RenderState(false); };
-            googleButton = FooterButton("Открыть Google Calendar", new Rectangle(96, 420, 232, 32), 4);
+            googleButton = FooterButton("Открыть Google Calendar", new Rectangle(96, 624, 232, 32), 8);
             googleButton.Click += delegate { if (GoogleRequested != null) GoogleRequested(this, EventArgs.Empty); };
             foreach (Control control in Controls) { logicalBounds.Add(control, control.Bounds); logicalFonts.Add(control, control.Font); }
             SetDpi(96);
@@ -111,7 +140,7 @@ namespace WinCalendar
             scaledFonts.Clear(); scaledFonts.AddRange(replacements.Values);
             AutoScrollMinSize = NaturalSize;
             Size = NaturalSize;
-            ResumeLayout(); Invalidate();
+            ResumeLayout(); if (palette != null) RenderEvents(); Invalidate();
         }
 
         private Label LabelAt(Rectangle bounds, Font font)
@@ -141,6 +170,10 @@ namespace WinCalendar
             foreach (Control control in Controls) control.BackColor = palette.Surface;
             heading.ForeColor = month.ForeColor = palette.Ink;
             weekday.ForeColor = palette.Secondary;
+            selectedDate.ForeColor = palette.Ink;
+            emptyEvents.ForeColor = syncStatus.ForeColor = updatedStatus.ForeColor = palette.Secondary;
+            foreach (Button action in new[] { connectButton, refreshButton, disconnectButton })
+            { action.ForeColor = palette.Accent; action.FlatAppearance.MouseOverBackColor = palette.Hover; }
             previous.Palette = next.Palette = palette;
             todayButton.ForeColor = palette.Accent;
             todayButton.FlatAppearance.MouseOverBackColor = palette.Hover;
@@ -172,14 +205,39 @@ namespace WinCalendar
                 button.InMonth = date.Month == State.Month.Month && date.Year == State.Month.Year;
                 button.Weekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
                 button.Palette = palette;
+                button.HasEvents = viewData.Events.Any(e => e.OccursOn(date, TimeZoneInfo.Local));
                 button.TabStop = button.Selected;
                 button.Enabled = date >= CalendarState.Minimum && date <= CalendarState.Maximum;
                 button.AccessibleName = date.ToString("dddd, d MMMM yyyy", DateText.Russian)
-                    + (button.Today ? ", сегодня" : "") + (button.Selected ? ", выбрано" : "");
+                    + (button.Today ? ", сегодня" : "") + (button.Selected ? ", выбрано" : "") + (button.HasEvents ? ", есть встречи" : "");
                 button.Invalidate();
                 if (focus && button.Selected) button.Focus();
             }
+            RenderEvents();
             previous.Invalidate(); next.Invalidate(); Invalidate();
+            if (renderedMonth != State.Month)
+            {
+                renderedMonth = State.Month;
+                if (RangeChanged != null) RangeChanged(this, EventArgs.Empty);
+            }
+        }
+
+        internal void SetData(CalendarViewData data) { viewData = data; RenderState(false); }
+
+        private void RenderEvents()
+        {
+            CalendarEvent[] day = viewData.Events.Where(e => e.OccursOn(State.Selected, TimeZoneInfo.Local)).OrderBy(e => e.SortOrder).ToArray();
+            selectedDate.Text = State.Selected.ToString("d MMMM yyyy", DateText.Russian) + (day.Length == 0 ? "" : " · " + day.Length);
+            eventsList.SetEvents(day, State.Selected, TimeZoneInfo.Local, palette, layoutDpi);
+            eventsList.Visible = day.Length > 0; emptyEvents.Visible = day.Length == 0;
+            emptyEvents.Text = viewData.Connection == CalendarConnection.Disconnected ? "Подключите основной календарь Google,\nчтобы видеть встречи выбранного дня."
+                : viewData.HasSnapshot ? "На этот день встреч нет." : viewData.Loading ? "Загружаем встречи…" : "Список встреч пока недоступен.";
+            syncStatus.Text = viewData.Message;
+            updatedStatus.Text = viewData.UpdatedUtc.HasValue ? "Данные: " + viewData.UpdatedUtc.Value.ToLocalTime().ToString("d MMM HH:mm", DateText.Russian) : "";
+            bool connected = viewData.Connection == CalendarConnection.Connected, busy = viewData.Connection == CalendarConnection.Busy;
+            connectButton.Text = busy ? "Отмена входа" : connected ? "Сменить аккаунт" : "Войти в Google";
+            refreshButton.Enabled = connected && !viewData.Loading;
+            disconnectButton.Enabled = connected || viewData.Connection == CalendarConnection.NeedsLogin;
         }
 
         internal void FocusSelectedDay()
@@ -206,8 +264,9 @@ namespace WinCalendar
         protected override void OnPaint(PaintEventArgs args)
         {
             base.OnPaint(args);
-            int inset = Pixels(16), top = Pixels(408) + AutoScrollPosition.Y;
-            using (Pen rule = new Pen(palette.Rule)) args.Graphics.DrawLine(rule, inset, top, Width - inset, top);
+            int inset = Pixels(16);
+            using (Pen rule = new Pen(palette.Rule))
+                foreach (int y in new[] { 400, 620 }) args.Graphics.DrawLine(rule, inset, Pixels(y) + AutoScrollPosition.Y, Width - inset, Pixels(y) + AutoScrollPosition.Y);
         }
 
         protected override void Dispose(bool disposing)
@@ -240,7 +299,7 @@ namespace WinCalendar
     internal sealed class CalendarDayButton : Button
     {
         internal CalendarPalette Palette;
-        internal bool Today, Selected, InMonth, Weekend;
+        internal bool Today, Selected, InMonth, Weekend, HasEvents;
         private bool hover;
         internal CalendarDayButton() { SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint, true); Cursor = Cursors.Hand; }
         protected override void OnMouseEnter(EventArgs args) { hover = true; Invalidate(); base.OnMouseEnter(args); }
@@ -261,6 +320,12 @@ namespace WinCalendar
                 using (Pen outline = new Pen(Palette.Accent, 1.5f * scale)) args.Graphics.DrawEllipse(outline, circle);
             Color ink = Today ? Palette.OnAccent : !InMonth ? Palette.Adjacent : Weekend ? Palette.Weekend : Palette.Ink;
             TextRenderer.DrawText(args.Graphics, Text, Font, ClientRectangle, ink, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            if (HasEvents)
+            {
+                float dot = 3 * scale;
+                using (Brush brush = new SolidBrush(Today ? Palette.OnAccent : Palette.Accent))
+                    args.Graphics.FillEllipse(brush, (Width - dot) / 2, Height - 5 * scale, dot, dot);
+            }
             if (Focused && ShowFocusCues) ControlPaint.DrawFocusRectangle(args.Graphics, Rectangle.Inflate(circle, -4, -4), ink, Today ? Palette.Accent : Palette.Surface);
         }
     }

@@ -41,6 +41,7 @@ namespace WinCalendar
             taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
             menu = new ContextMenuStrip();
             menu.Items.Add("Открыть Google Календарь", null, delegate { Program.OpenGoogleCalendar(); });
+            menu.Items.Add("Настроить подключение Google…", null, delegate { calendar.ConfigureGoogle(); });
             menu.Items.Add(new ToolStripSeparator());
             startup = new ToolStripMenuItem("Запускать с Windows") { CheckOnClick = true };
             startup.Click += delegate { ShellIntegration.StartsWithWindows = startup.Checked; };
@@ -59,7 +60,7 @@ namespace WinCalendar
                 if (WindowState != FormWindowState.Minimized) WindowState = FormWindowState.Minimized;
             };
             RefreshDate(true);
-            calendar = new CalendarPopup(now, Program.OpenGoogleCalendar);
+            calendar = new CalendarPopup(now, Program.OpenGoogleCalendar, integrateWithShell);
             if (integrateWithShell)
             {
                 SystemEvents.TimeChanged += OnTimeChanged;
@@ -161,6 +162,7 @@ namespace WinCalendar
                     if (integrateWithShell) ShellIntegration.StartsWithWindows = command == Program.StartupOnCommand;
                 }
                 else if (command == Program.MenuCommand && integrateWithShell) ShowMenu();
+                else if (command == Program.GoogleSetupCommand && integrateWithShell) calendar.ConfigureGoogle();
                 else if (command == Program.OpenCalendarCommand && integrateWithShell) ToggleCalendar();
                 else RefreshDate(false);
                 return;

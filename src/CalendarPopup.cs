@@ -1,6 +1,9 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace WinCalendar
@@ -10,6 +13,12 @@ namespace WinCalendar
         private readonly Func<DateTime> clock;
         private readonly ToolStripControlHost host;
         private readonly CalendarDropDown dropDown;
+        private readonly GoogleCalendarClient google;
+        private readonly CalendarSync sync;
+        private readonly System.Windows.Forms.Timer refreshTimer;
+        private CancellationTokenSource login;
+        private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
+        private bool disposed, disconnecting, configuring;
         private Rectangle anchorArea;
         private DateTime dismissedAtAnchor = DateTime.MinValue;
         internal CalendarPanel Panel { get; private set; }
@@ -17,7 +26,7 @@ namespace WinCalendar
         internal IntPtr Handle { get { return dropDown.Handle; } }
         internal Rectangle Bounds { get { return dropDown.Bounds; } }
 
-        internal CalendarPopup(Func<DateTime> now, Action openGoogle)
+        internal CalendarPopup(Func<DateTime> now, Action openGoogle, bool connectGoogle = false)
         {
             clock = now;
             Panel = new CalendarPanel(now());
@@ -25,9 +34,27 @@ namespace WinCalendar
             dropDown = new CalendarDropDown { AutoClose = true, Padding = Padding.Empty, Margin = Padding.Empty, DropShadowEnabled = true };
             dropDown.Items.Add(host);
             Panel.GoogleRequested += delegate { Hide(); openGoogle(); };
+            Panel.EventRequested += delegate(string url) { Hide(); Program.OpenCalendarEvent(url); };
             Panel.DismissRequested += delegate { Hide(); };
+            refreshTimer = new System.Windows.Forms.Timer { Interval = 120000 };
+            if (connectGoogle)
+            {
+                try
+                {
+                    google = new GoogleCalendarClient(new WindowsCredentialStore());
+                    sync = new CalendarSync(google, new CalendarCache(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "GoogleCache")));
+                    sync.Changed += Panel.SetData;
+                }
+                catch (Exception) { Panel.SetData(new CalendarViewData { Message = "Хранилище Windows недоступно. Повторите запуск приложения." }); }
+                Panel.RangeChanged += async delegate { await RefreshEventsAsync(false); };
+                Panel.RefreshRequested += async delegate { await RefreshEventsAsync(true); };
+                Panel.ConnectRequested += async delegate { await ConnectAsync(); };
+                Panel.DisconnectRequested += async delegate { await DisconnectAsync(); };
+                refreshTimer.Tick += async delegate { await RefreshEventsAsync(false); };
+            }
             dropDown.Closed += delegate(object sender, ToolStripDropDownClosedEventArgs args)
             {
+                refreshTimer.Stop();
                 if ((args.CloseReason == ToolStripDropDownCloseReason.AppClicked || args.CloseReason == ToolStripDropDownCloseReason.AppFocusChange)
                     && anchorArea.Contains(Cursor.Position)) dismissedAtAnchor = DateTime.UtcNow;
             };
@@ -45,7 +72,7 @@ namespace WinCalendar
             ShowAt(anchor, Screen.FromPoint(anchor).WorkingArea);
         }
 
-        internal void ShowAt(Point anchor, Rectangle work)
+        internal async void ShowAt(Point anchor, Rectangle work)
         {
             dropDown.Location = anchor;
             Panel.SetDpi((int)GetDpiForWindow(dropDown.Handle));
@@ -57,6 +84,8 @@ namespace WinCalendar
             dropDown.BackColor = Panel.BackColor;
             dropDown.Show(bounds.Location);
             Panel.FocusSelectedDay();
+            refreshTimer.Start();
+            if (sync != null && login == null && !disconnecting) await RefreshEventsAsync(false);
         }
 
         internal static Rectangle Place(Size requested, Point anchor, Rectangle work)
@@ -77,7 +106,93 @@ namespace WinCalendar
 
         internal void UpdateToday(DateTime today) { Panel.UpdateToday(today); }
         internal void Hide() { dropDown.Close(ToolStripDropDownCloseReason.CloseCalled); }
-        public void Dispose() { dropDown.Dispose(); }
+        private async Task RefreshEventsAsync(bool force)
+        {
+            if (sync == null || disposed || login != null || disconnecting || configuring) return;
+            DateTime[] days = Panel.State.Days();
+            await sync.ShowAsync(days[0], days[days.Length - 1].AddDays(1), TimeZoneInfo.Local, force);
+        }
+
+        internal async void ConfigureGoogle() { await ConfigureGoogleAsync(); }
+
+        private async Task<bool> ConfigureGoogleAsync()
+        {
+            if (google == null || login != null || disconnecting || configuring || disposed) return false;
+            Hide(); sync.Cancel(); configuring = true;
+            try
+            {
+                using (GoogleSetupDialog dialog = new GoogleSetupDialog())
+                {
+                    if (dialog.ShowDialog() != DialogResult.OK) return false;
+                    try { await google.ConfigureAsync(dialog.ClientId, dialog.ClientSecret, lifetime.Token); if (!disposed) sync.Clear(); return !disposed; }
+                    catch (Exception error)
+                    {
+                        GoogleFailure failure = error as GoogleFailure;
+                        if (!disposed) MessageBox.Show(failure == null ? "Не удалось сохранить подключение в хранилище Windows." : failure.Message, "WinCalendar");
+                        return false;
+                    }
+                }
+            }
+            finally { configuring = false; }
+        }
+
+        private async Task ConnectAsync()
+        {
+            if (google == null || disposed || disconnecting || configuring) return;
+            if (login != null) { login.Cancel(); return; }
+            if (!google.Configured) await ConfigureGoogleAsync();
+            if (!google.Configured) return;
+            Hide(); sync.Cancel();
+            CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); login = cancellation;
+            Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = "Завершите вход в открывшемся браузере." });
+            try
+            {
+                await google.ConnectAsync(cancellation.Token);
+                if (!disposed) sync.Clear();
+            }
+            catch (OperationCanceledException)
+            {
+                if (!disposed) Panel.SetData(new CalendarViewData { Connection = google.Connected ? CalendarConnection.Connected : CalendarConnection.Disconnected, Message = "Вход отменён или истекло время ожидания. Можно повторить." });
+            }
+            catch (Exception error)
+            {
+                GoogleFailure failure = error as GoogleFailure;
+                if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin,
+                    Message = failure == null ? "Не удалось войти в Google. Проверьте сеть и настройки клиента." : failure.Message });
+            }
+            finally
+            {
+                login = null; cancellation.Dispose();
+            }
+            if (!disposed && google.Connected) await RefreshEventsAsync(true);
+        }
+
+        private async Task DisconnectAsync()
+        {
+            if (google == null || disposed || disconnecting || login != null) return;
+            disconnecting = true; sync.Clear();
+            Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = "Отключаем Google…" });
+            try
+            {
+                bool revoked = await google.DisconnectAsync(lifetime.Token);
+                if (!disposed)
+                {
+                    sync.Clear();
+                    if (!revoked) Panel.SetData(new CalendarViewData { Message = "Локальный доступ удалён. Отзыв в Google не выполнен: нет связи." });
+                }
+            }
+            catch (Exception) { if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin, Message = "Не удалось удалить доступ из хранилища Windows. Повторите отключение." }); }
+            finally { disconnecting = false; }
+        }
+
+        public void Dispose()
+        {
+            disposed = true; lifetime.Cancel();
+            if (sync != null) sync.Dispose();
+            refreshTimer.Dispose(); dropDown.Dispose();
+            if (google != null) google.Dispose();
+            lifetime.Dispose();
+        }
 
         [DllImport("user32.dll")]
         private static extern uint GetDpiForWindow(IntPtr window);
