@@ -56,6 +56,7 @@ namespace WinCalendar
                 TestDateOnlyHost(directory);
                 TestCalendar(directory);
                 await GoogleSelfTest.RunAsync(directory, Check);
+                await FeaturesSelfTest.RunAsync(directory, Check);
                 await ReminderSelfTest.RunAsync(directory, Check);
                 Results.Add("PASS all checks; popup uses a tool window, background startup stays hidden.");
             }

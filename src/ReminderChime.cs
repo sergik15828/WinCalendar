@@ -9,19 +9,24 @@ namespace WinCalendar
         private readonly MemoryStream stream;
         private readonly SoundPlayer player;
 
-        internal ReminderChime()
+        internal ReminderChime() : this(0, 100) { }
+        internal ReminderChime(int style, int volume)
         {
-            stream = new MemoryStream(CreateWave(), false);
+            stream = new MemoryStream(CreateWave(style, volume), false);
             player = new SoundPlayer(stream);
             player.Load();
         }
 
         internal void Play() { player.Play(); }
+        internal void PlaySync() { player.PlaySync(); }
 
         // Original two-note chime, generated locally without audio assets.
-        internal static byte[] CreateWave()
+        internal static byte[] CreateWave(int style = 0, int volume = 100)
         {
             const int rate = 44100, samples = 48510;
+            double first = style == 1 ? 659.255 : style == 2 ? 440 : 523.251;
+            double second = style == 1 ? 987.767 : style == 2 ? 659.255 : 783.991;
+            double gain = Math.Max(0, Math.Min(100, volume)) / 100.0;
             using (MemoryStream output = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(output))
             {
@@ -33,7 +38,7 @@ namespace WinCalendar
                 for (int i = 0; i < samples; i++)
                 {
                     double time = (double)i / rate;
-                    double sample = 0.19 * Note(time, 523.251, 0.86) + 0.17 * Note(time - 0.18, 783.991, 0.92);
+                    double sample = gain * (0.19 * Note(time, first, 0.86) + 0.17 * Note(time - 0.18, second, 0.92));
                     writer.Write((short)Math.Round(sample * Int16.MaxValue));
                 }
                 return output.ToArray();

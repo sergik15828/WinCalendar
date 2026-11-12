@@ -15,7 +15,9 @@ namespace WinCalendar
     {
         private readonly System.Windows.Forms.Timer animation;
         private readonly Action playSound;
-        private readonly ReminderChime chime;
+        private ReminderChime chime;
+        private int soundStyle = -1, soundVolume = -1;
+        internal AppPreferences Preferences = new AppPreferences();
         private readonly Stopwatch clock = new Stopwatch();
         private DateTime anchorChecked;
         private Rectangle locatedPin;
@@ -27,7 +29,7 @@ namespace WinCalendar
 
         internal ReminderOverlay(Action notificationSound)
         {
-            if (notificationSound == null) { chime = new ReminderChime(); playSound = chime.Play; }
+            if (notificationSound == null) playSound = PlayChime;
             else playSound = notificationSound;
             AutoScaleMode = AutoScaleMode.None; FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false; TopMost = true; StartPosition = FormStartPosition.Manual;
@@ -53,12 +55,23 @@ namespace WinCalendar
             if (active == enabled) return;
             active = enabled;
             if (!enabled) { animation.Stop(); Hide(); return; }
-            try { playSound(); }
+            try { if (Preferences.SoundEnabled && Preferences.Volume > 0 && !Preferences.IsQuiet(DateTime.Now)) playSound(); }
             catch (InvalidOperationException) { }
             int enabledMotion;
             motion = SystemParametersInfo(0x1042, 0, out enabledMotion, 0) && enabledMotion != 0 && !SystemInformation.HighContrast;
             animation.Interval = motion ? 33 : 1000;
             clock.Restart(); animation.Start(); Render();
+        }
+
+        private void PlayChime()
+        {
+            if (chime == null || soundStyle != Preferences.SoundStyle || soundVolume != Preferences.Volume)
+            {
+                if (chime != null) chime.Dispose();
+                chime = new ReminderChime(Preferences.SoundStyle, Preferences.Volume);
+                soundStyle = Preferences.SoundStyle; soundVolume = Preferences.Volume;
+            }
+            chime.Play();
         }
 
         private async void RefreshAnchor()
@@ -79,7 +92,7 @@ namespace WinCalendar
             { Location = new Point(pin.Left + pin.Width / 2 - Width / 2, pin.Top + pin.Height / 2 - Height / 2); locatedPin = pin; }
             int dpi = (int)GetDpiForWindow(Handle), size = (int)Math.Round(48 * dpi / 96.0);
             Point at = new Point(pin.Left + pin.Width / 2 - size / 2, pin.Top + pin.Height / 2 - size / 2);
-            using (Bitmap bitmap = DrawFrame(size, motion ? clock.Elapsed.TotalMilliseconds % 1800 / 1800 : 0.35))
+            using (Bitmap bitmap = DrawFrame(size, motion ? clock.Elapsed.TotalMilliseconds % 1800 / 1800 : 0.35, Preferences.PulseStrength))
             {
                 if (!Present(bitmap, at)) { Hide(); return; }
             }
@@ -89,7 +102,7 @@ namespace WinCalendar
             SetWindowPos(Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0213);
         }
 
-        internal static Bitmap DrawFrame(int size, double phase)
+        internal static Bitmap DrawFrame(int size, double phase, int strength = 1)
         {
             Bitmap bitmap = new Bitmap(size, size, PixelFormat.Format32bppPArgb);
             using (Graphics graphics = Graphics.FromImage(bitmap))
@@ -98,9 +111,10 @@ namespace WinCalendar
                 graphics.ScaleTransform(size / 48f, size / 48f);
                 double breathe = (1 - Math.Cos(phase * 2 * Math.PI)) / 2;
                 Color accent = SystemInformation.HighContrast ? SystemColors.Highlight : Color.FromArgb(196, 43, 54);
-                float spread = (float)(3 * breathe);
+                double power = strength == 0 ? 0.65 : strength == 2 ? 1.25 : 1;
+                float spread = (float)(3 * breathe * power);
                 using (GraphicsPath outline = Rounded(8 - spread, 8 - spread, 32 + 2 * spread, 32 + 2 * spread, 6 + spread))
-                using (Pen pen = new Pen(Color.FromArgb((int)(65 + 175 * breathe), accent), (float)(1.25 + 1.25 * breathe))) graphics.DrawPath(pen, outline);
+                using (Pen pen = new Pen(Color.FromArgb(Math.Min(255, (int)((65 + 175 * breathe) * power)), accent), (float)(1.25 + 1.25 * breathe * power))) graphics.DrawPath(pen, outline);
                 float radius = (float)(3 + 1.5 * breathe), ripple = (float)(5 + 6 * phase);
                 using (Pen ring = new Pen(Color.FromArgb((int)(150 * (1 - phase)), accent), 1.4f))
                     graphics.DrawEllipse(ring, 36 - ripple, 12 - ripple, 2 * ripple, 2 * ripple);

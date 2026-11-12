@@ -20,6 +20,7 @@ namespace WinCalendar
         internal const int GoogleSetupCommand = 6;
         internal const int GoogleConnectCommand = 7;
         internal const int PreviewReminderCommand = 8;
+        internal const int PreferencesCommand = 9;
         internal const string GoogleCalendarUrl = "https://calendar.google.com/calendar/";
 
         [STAThread]
@@ -64,6 +65,7 @@ namespace WinCalendar
                             else if (command == GoogleSetupCommand) PostCommand(GoogleSetupCommand, Process.GetCurrentProcess().Id);
                             else if (command == GoogleConnectCommand) PostCommand(GoogleConnectCommand, Process.GetCurrentProcess().Id);
                             else if (command == PreviewReminderCommand) PostCommand(PreviewReminderCommand, Process.GetCurrentProcess().Id);
+                            else if (command == PreferencesCommand) PostCommand(PreferencesCommand, Process.GetCurrentProcess().Id);
                         };
                         Application.Run(window);
                     }
@@ -89,6 +91,7 @@ namespace WinCalendar
             if (argument == "--google-setup") return GoogleSetupCommand;
             if (argument == "--google-connect") return GoogleConnectCommand;
             if (argument == "--preview-reminder") return PreviewReminderCommand;
+            if (argument == "--preferences") return PreferencesCommand;
             return -1;
         }
 
@@ -126,7 +129,7 @@ namespace WinCalendar
                 if (owner == 0 || (targetProcess == 0 ? owner == caller : owner != targetProcess)) return true;
                 // A user-launched secondary process passes activation rights
                 // to the existing host before forwarding an interactive command.
-                if (command == OpenCalendarCommand || command == MenuCommand || command == GoogleSetupCommand || command == GoogleConnectCommand)
+                if (command == OpenCalendarCommand || command == MenuCommand || command == GoogleSetupCommand || command == GoogleConnectCommand || command == PreferencesCommand)
                     AllowSetForegroundWindow((uint)owner);
                 posted = PostMessage(window, CommandMessage, new IntPtr(command), IntPtr.Zero);
                 return !posted;

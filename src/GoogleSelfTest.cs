@@ -132,6 +132,7 @@ namespace WinCalendar
                 string ciphertext = Encoding.UTF8.GetString(File.ReadAllBytes(Directory.GetFiles(cachePath, "*.bin").Single()));
                 check(!ciphertext.Contains(allDay.Title), "Private event titles are not plaintext in the disk cache");
                 check(cache.Read("fixture-account", first, zone).Events.Single().Title == allDay.Title && cache.Read("other-account", first, zone) == null, "Cache round-trips and separates accounts");
+                cache.Write("fixture-account:range:" + first.AddDays(42).ToString("yyyyMMdd"), first, zone, snapshot);
                 FixtureSource offline = new FixtureSource { Load = delegate { throw new HttpRequestException(); } };
                 using (CalendarSync sync = new CalendarSync(offline, cache))
                 {

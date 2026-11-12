@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,11 @@ namespace WinCalendar
         private readonly Func<DateTime> clock;
         private readonly CalendarFlyout window;
         private readonly GoogleClientEditor editor;
+        private readonly PreferencesEditor preferencesPage;
+        private readonly PreferenceStore preferenceStore;
+        private AppPreferences preferences;
+        private bool preferencesVisible;
+        private bool catalogLoading;
         private readonly GoogleCalendarClient google;
         private readonly CalendarSync sync;
         private readonly bool shell;
@@ -38,13 +44,24 @@ namespace WinCalendar
         internal CalendarPopup(Func<DateTime> now, Action openGoogle, bool connectGoogle = false, GoogleCalendarClient client = null)
         {
             clock = now; shell = connectGoogle;
+            preferenceStore = shell ? new PreferenceStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "Preferences.bin")) : null;
+            preferences = preferenceStore == null ? new AppPreferences() : preferenceStore.Load();
             Panel = new CalendarPanel(now());
+            Panel.SetPreferences(preferences);
             editor = new GoogleClientEditor { Dock = DockStyle.Fill, Visible = false };
+            preferencesPage = new PreferencesEditor { Dock = DockStyle.Fill, Visible = false };
             window = new CalendarFlyout { Text = "WinCalendar", StartPosition = FormStartPosition.Manual, ClientSize = Panel.Size };
             Panel.Dock = DockStyle.Fill;
-            window.Controls.Add(Panel); window.Controls.Add(editor);
+            window.Controls.Add(Panel); window.Controls.Add(editor); window.Controls.Add(preferencesPage);
             Panel.GoogleRequested += delegate { Hide(); openGoogle(); };
             Panel.EventRequested += delegate(string url) { Hide(); Program.OpenCalendarEvent(url); };
+            Panel.MeetRequested += delegate(string url) { string safe = CalendarPage.SafeMeetLink(url); if (safe != null) { Hide(); Program.OpenBrowser(safe); } };
+            Panel.OptionsRequested += delegate { OpenPreferences(); };
+            Panel.SnoozeRequested += delegate(int minutes) { if (reminders != null && reminders.Snooze(minutes)) Hide(); };
+            preferencesPage.BackRequested += delegate { ShowCalendarSettings(); };
+            preferencesPage.CloseRequested += delegate { Hide(); };
+            preferencesPage.SaveRequested += SavePreferences;
+            preferencesPage.CatalogRefreshRequested += delegate { RefreshCatalog(); };
             Panel.DismissRequested += delegate { Hide(); };
             Panel.ConfigureRequested += delegate { ConfigureGoogle(); };
             Panel.PreviewRequested += delegate { Hide(); if (reminders != null) reminders.Preview(); };
@@ -96,7 +113,8 @@ namespace WinCalendar
         internal void StartBackgroundServices()
         {
             if (!shell || google == null || reminders != null || disposed) return;
-            reminders = new ReminderCoordinator(google, lifetime.Token);
+            reminders = new ReminderCoordinator(google, lifetime.Token, preferences, delegate { return Visible; });
+            reminders.UpcomingChanged += delegate { Panel.SetUpcoming(reminders.Events, reminders.CanSnooze); };
             reminders.Start();
         }
 
@@ -117,13 +135,13 @@ namespace WinCalendar
             anchorArea = pin.IsEmpty ? new Rectangle(anchor.X - 28, anchor.Y - 28, 56, 56) : pin;
             window.Location = anchor;
             int dpi = (int)GetDpiForWindow(window.Handle);
-            Panel.SetDpi(dpi); editor.SetDpi(dpi);
-            if (!editorVisible) Panel.Reset(clock());
+            Panel.SetDpi(dpi); editor.SetDpi(dpi); preferencesPage.SetDpi(dpi);
+            if (!editorVisible && !preferencesVisible) Panel.Reset(clock());
             Rectangle bounds = Place(Panel.NaturalSize, anchor, work);
             window.Bounds = bounds;
             if (!window.Visible) window.Show();
             window.Reveal();
-            if (editorVisible) editor.Select(); else Panel.FocusSelectedDay();
+            if (editorVisible) editor.Select(); else if (preferencesVisible) preferencesPage.Select(); else Panel.FocusSelectedDay();
             if (sync != null && login == null && !disconnecting) await RefreshEventsAsync(false);
         }
 
@@ -143,6 +161,7 @@ namespace WinCalendar
 
         internal void ShowCalendarSettings()
         {
+            preferencesVisible = false; preferencesPage.Visible = false;
             editorVisible = false; editor.Visible = false; Panel.Visible = true;
             if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
             Panel.ShowSettings(true);
@@ -154,7 +173,42 @@ namespace WinCalendar
         {
             if (sync == null || disposed || login != null || disconnecting || configuring) return;
             DateTime[] days = Panel.State.Days();
-            await sync.ShowAsync(days[0], days[days.Length - 1].AddDays(1), TimeZoneInfo.Local, force);
+            await sync.ShowAsync(days[0], days[days.Length - 1].AddDays(8), TimeZoneInfo.Local, force);
+        }
+
+        internal PreferencesEditor PreferencesPage { get { return preferencesPage; } }
+        internal void OpenPreferences()
+        {
+            if (google != null && google.LastCalendars.Length > 0)
+                preferences.Calendars = google.LastCalendars.Select(c => new CalendarChoice { Id = c.Id, Name = c.Name, Color = c.Color }).ToList();
+            preferencesPage.BeginEdit(preferences); preferencesVisible = true; editorVisible = false; editor.Visible = false;
+            if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
+            Panel.Visible = false; preferencesPage.Visible = true; preferencesPage.BringToFront(); window.Reveal();
+            if (preferences.Calendars.Count == 0 && google != null && google.Connected) RefreshCatalog();
+        }
+        private async void RefreshCatalog()
+        {
+            if (google == null || catalogLoading || disposed || !google.Connected) return;
+            catalogLoading = true; string account = google.CacheIdentity;
+            try
+            {
+                var values = await google.ListCalendarsAsync(lifetime.Token);
+                if (disposed || account != google.CacheIdentity) return;
+                google.LastCalendars = values.ToArray();
+                preferences.Calendars = values.Select(c => new CalendarChoice { Id = c.Id, Name = c.Name, Color = c.Color }).ToList();
+                if (preferencesVisible) preferencesPage.SetCatalog(preferences.Calendars);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception) { if (!disposed && preferencesVisible) preferencesPage.ShowError("Не удалось загрузить список Google."); }
+            finally { catalogLoading = false; }
+        }
+        private void SavePreferences(AppPreferences value)
+        {
+            try { if (preferenceStore != null) preferenceStore.Save(value); }
+            catch (Exception) { preferencesPage.ShowError("Не удалось сохранить настройки."); return; }
+            preferences = value; Panel.SetPreferences(value);
+            if (reminders != null) reminders.SetPreferences(value);
+            ShowCalendarSettings();
         }
 
         internal void ConfigureGoogle() { OpenClientEditor(false); }
@@ -165,6 +219,7 @@ namespace WinCalendar
         {
             if (disposed || login != null || disconnecting || configuring) return;
             if (google == null) { ShowCalendarSettings(); return; }
+            preferencesVisible = false; preferencesPage.Visible = false;
             if (!editorVisible) { editor.BeginEdit(google.ConfiguredClientId); loginAfterSave = connectAfter; }
             editorVisible = true;
             if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
@@ -209,7 +264,7 @@ namespace WinCalendar
             try
             {
                 await google.ConnectAsync(cancellation.Token);
-                if (!disposed) { sync.Clear(); if (reminders != null) { reminders.ResetAccount(); await reminders.RefreshAsync(true); } }
+                if (!disposed) { ResetCalendarPreferences(); sync.Clear(); if (reminders != null) { reminders.ResetAccount(); await reminders.RefreshAsync(true); } }
             }
             catch (OperationCanceledException)
             {
@@ -235,6 +290,7 @@ namespace WinCalendar
             try
             {
                 bool revoked = await google.DisconnectAsync(lifetime.Token);
+                if (!disposed) ResetCalendarPreferences();
                 if (!disposed) { sync.Clear(); if (reminders != null) reminders.ResetAccount(); if (!revoked) Panel.SetData(new CalendarViewData { Message = "Локальный доступ удалён. Отзыв в Google не выполнен: нет связи." }); }
             }
             catch (Exception) { if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin, Message = "Не удалось удалить доступ. Повторите отключение." }); }
@@ -249,6 +305,16 @@ namespace WinCalendar
             if (sync != null) sync.Dispose();
             refreshTimer.Dispose(); closeTimer.Dispose(); window.Dispose();
             if (google != null) google.Dispose(); lifetime.Dispose();
+        }
+
+        private void ResetCalendarPreferences()
+        {
+            preferences.Calendars.Clear(); preferences.DisabledCalendars.Clear(); preferences.CalendarColors.Clear();
+            google.LastCalendars = new GoogleCalendarEntry[0];
+            if (preferenceStore != null)
+                try { preferenceStore.Save(preferences); }
+                catch (IOException) { } catch (UnauthorizedAccessException) { } catch (System.Security.Cryptography.CryptographicException) { }
+            Panel.SetPreferences(preferences);
         }
 
         [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();

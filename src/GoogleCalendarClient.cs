@@ -33,6 +33,7 @@ namespace WinCalendar
         private readonly ICredentialStore credentials;
         private readonly HttpClient http;
         private readonly SemaphoreSlim tokenLock = new SemaphoreSlim(1, 1);
+        internal GoogleCalendarEntry[] LastCalendars = new GoogleCalendarEntry[0];
         private string clientId, clientSecret, refreshToken, accessToken, cacheIdentity;
         private DateTime accessExpires;
         private bool needsLogin;
@@ -194,7 +195,7 @@ namespace WinCalendar
             string url = "https://www.googleapis.com/calendar/v3/calendars/" + Uri.EscapeDataString(calendarId) + "/events?singleEvents=true&orderBy=startTime&showDeleted=false&maxResults=250&timeZone=UTC"
                 + "&timeMin=" + Uri.EscapeDataString(CalendarEvent.Boundary(first, zone).ToString("o", CultureInfo.InvariantCulture))
                 + "&timeMax=" + Uri.EscapeDataString(CalendarEvent.Boundary(end, zone).ToString("o", CultureInfo.InvariantCulture))
-                + "&fields=" + Uri.EscapeDataString("nextPageToken,defaultReminders,items(id,status,summary,htmlLink,start,end,reminders)");
+                + "&fields=" + Uri.EscapeDataString("nextPageToken,defaultReminders,items(id,status,summary,htmlLink,hangoutLink,location,iCalUID,conferenceData(entryPoints(entryPointType,uri)),start,end,reminders)");
             if (!String.IsNullOrEmpty(page)) url += "&pageToken=" + Uri.EscapeDataString(page);
             return url;
         }
@@ -203,10 +204,11 @@ namespace WinCalendar
         {
             List<CalendarEvent> events = new List<CalendarEvent>();
             List<GoogleCalendarEntry> calendars = await ListCalendarsAsync(cancellation).ConfigureAwait(false);
+            LastCalendars = calendars.ToArray();
             foreach (GoogleCalendarEntry calendar in calendars)
             {
                 List<CalendarEvent> items = await LoadCalendarAsync(calendar, first, end, zone, cancellation).ConfigureAwait(false);
-                foreach (CalendarEvent item in items) { item.CalendarId = calendar.Id; item.CalendarName = calendar.Name; item.CalendarTimeZone = calendar.TimeZone; }
+                foreach (CalendarEvent item in items) { item.CalendarId = calendar.Id; item.CalendarName = calendar.Name; item.CalendarTimeZone = calendar.TimeZone; item.CalendarColor = calendar.Color; }
                 events.AddRange(items);
             }
             return events.GroupBy(e => new { e.CalendarId, Key = e.Id ?? e.Start + e.Title }).Select(group => group.First()).ToList();
@@ -220,7 +222,7 @@ namespace WinCalendar
             do
             {
                 string url = "https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250&showHidden=false&showDeleted=false"
-                    + "&fields=" + Uri.EscapeDataString("nextPageToken,items(id,summary,summaryOverride,accessRole,hidden,deleted,timeZone,defaultReminders)");
+                    + "&fields=" + Uri.EscapeDataString("nextPageToken,items(id,summary,summaryOverride,accessRole,hidden,deleted,timeZone,backgroundColor,defaultReminders)");
                 if (!String.IsNullOrEmpty(page)) url += "&pageToken=" + Uri.EscapeDataString(page);
                 GoogleCalendarList parsed = GoogleCalendarList.Parse(await ReadJsonAsync(url, true, cancellation).ConfigureAwait(false));
                 calendars.AddRange(parsed.Calendars); page = parsed.NextPage;

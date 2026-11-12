@@ -1,6 +1,6 @@
 ---
 name: WinCalendar
-description: Today's date on the Windows 11 taskbar with a compact calendar and optional Google events.
+description: Today's taskbar date, a compact calendar, and local controls for read-only Google meetings.
 colors:
   weekday-strip: "#C42B36"
   weekday-text: "#FFFFFF"
@@ -53,6 +53,10 @@ typography:
     fontFamily: "Segoe UI"
     fontSize: "10pt"
     fontWeight: 700
+  calendar-preferences:
+    fontFamily: "Segoe UI"
+    fontSize: "9.5pt"
+    fontWeight: 400
   calendar-event-detail:
     fontFamily: "Segoe UI"
     fontSize: "9pt"
@@ -103,7 +107,8 @@ Background startup keeps the native host minimized and opens neither popup nor b
 - Calendar left, meetings right, with a fine vertical divider.
 - Compact type hierarchy and distinct event time, title and source-calendar roles.
 - Settings and OAuth editing stay inside one reusable native tool window.
-- A visible breathing reminder persists until the user clicks the date.
+- A visible breathing reminder persists until acknowledged; local snooze defers its batch.
+- Meet, the next meeting, seven-day agendas and local attention preferences extend the same visual system.
 
 ## Colors
 
@@ -115,15 +120,15 @@ The dark popup uses calendar-dark-accent with dark-surface ink on filled control
 
 ## Typography
 
-Use Segoe UI throughout. The icon's bold glyphs fit their actual contours rather than ordinary text padding. The popup hierarchy is today's date or page heading (calendar-heading), displayed month and Встречи heading (calendar-month), day numbers and settings actions (calendar-body), and weekday, selected-date and status labels (calendar-weekday). Cards use bold calendar-event-title text beneath an accent-colored calendar-event-detail time; their source calendar uses the same detail size in secondary ink. Calendar labels and full accessible date names are Russian; event titles retain their source text.
+Use Segoe UI throughout. The icon's bold glyphs fit their actual contours rather than ordinary text padding. The popup hierarchy is today's date or page heading (calendar-heading), displayed month and Встречи heading (calendar-month), day numbers and settings actions (calendar-body), and weekday, selected-date and status labels (calendar-weekday). Cards use bold calendar-event-title text beneath an accent-colored calendar-event-detail time; their source calendar uses the same detail size in secondary ink. Preferences and the taskbar meeting tip use 9.5pt Segoe UI. Calendar labels and full accessible date names are Russian; event titles retain their source text unless private mode masks them.
 
 ## Layout
 
 The popup's natural size is 688 × 380 logical pixels at 96 DPI. This approved two-pane arrangement replaces the former tall layout. A fine divider at x=344 separates the calendar from the agenda. Both panes use 16px outer insets; the agenda starts at x=360 and is 312px wide. The seven-column, Monday-first calendar retains six week rows, now at a compact 32px pitch.
 
-Today's date and weekday sit above the calendar. Today and the month arrows share the month-heading row. The right pane has a Встречи heading, a selected-date/count subtitle and an independently scrollable event list at (360,86), sized 312 × 278 logical pixels. The gear at (600,16) opens settings in the same footprint; the separate close button at (640,16) hides the flyout while the background host keeps running. Connection actions, sync status, browser launch, startup, reminder preview and Exit live behind that gear; the calendar view has no footer-control strip.
+Today's date and weekday sit above the calendar. Today and the month arrows share the month-heading row. The right pane has a Встречи heading, a selected-date/count subtitle and an independently scrollable event list at (360,86), sized 312 × 278 logical pixels. The gear at (600,16) opens settings in the same footprint; the separate close button at (640,16) hides the flyout while the background host keeps running. The Day/Week toggle sits at (580,46); the next-meeting label at (16,322) and contextual 5/10-minute snooze actions at y=348 use the space below the month grid. Connection actions, sync status, browser launch, preferences, startup, reminder preview and Exit live behind that gear; the calendar view has no footer-control strip.
 
-Calendar, settings and OAuth editor share the same native window and natural size. Bounds, fonts and paint scale together with its actual DPI: requested 120 and 144 DPI dimensions are 860 × 475 and 1032 × 570 physical pixels. Anchor the flyout to the pinned date when located, otherwise near the pointer, and constrain it to the monitor's working area. On a smaller work area, retain legible text and allow scrolling.
+Calendar, settings, three preference pages and OAuth editor share the same native window and natural size. Preferences have a heading, three 208px tabs on a 224px pitch at y=58, a two-column content area at (16,104), and Back/Save actions at y=330. Bounds, fonts and paint scale together with its actual DPI: requested 120 and 144 DPI dimensions are 860 × 475 and 1032 × 570 physical pixels. Anchor the flyout to the pinned date when located, otherwise near the pointer, and constrain it to the monitor's working area. On a smaller work area, retain legible text and allow scrolling.
 
 ## Elevation & Depth
 
@@ -144,7 +149,7 @@ Render the icon independently at 16, 20, 24, 32, 40, 48, 64 and 128 pixels. Coor
 - Fit the actual glyph contours of the two-letter Russian weekday into (5,3,54,20), in white Segoe UI Bold. This removes the normal font padding.
 - Fit the day glyph contours into (4,30,56,30), in near-black Segoe UI Bold.
 - Keep the background transparent and the icon's own paper opaque so it works on light and dark taskbars.
-- The full local date appears as the taskbar title for accessibility and hover text.
+- The full local date remains the taskbar title for accessibility and native hover text; an optional separate next-meeting tip is described below.
 
 Update the icon at local midnight, after a time change, after sleep, and on repeated launch. Retry transient write failures. Keep one stable ICO path and notify Explorer of affected own shortcuts. Use the native executable identity and an ordinary Start menu shortcut. Do not override AppUserModelID or window relaunch properties. Keep the installed executable name WinDate.exe stable for startup and pinned shortcuts. Every shipping icon frame uses native 32-bit DIB.
 
@@ -158,9 +163,9 @@ The gear opens a two-column settings page in place. Actions are flat, left-align
 
 ### Google events
 
-A small dot below a day number signals events from the account's readable calendars. It is raised clear of the cell's lower edge and uses accent ink, or on-accent ink inside today's filled circle. The selected-date heading adds the event count when nonzero. Selection updates the right pane without changing today's header or taskbar date.
+A small dot below a day number signals events from the enabled readable calendars. It is raised clear of the cell's lower edge and uses accent ink, or on-accent ink inside today's filled circle. The selected-date heading adds the event count when nonzero. Selection updates the right pane without changing today's header or taskbar date.
 
-Event rows are 92 logical pixels high. Each card has 12px horizontal padding: a 9pt accent time or all-day label begins 7px below the card top, a 10pt bold title begins at 27px and wraps within a 34px two-line area, and 9pt source-calendar metadata begins at 64px. Long titles end with an ellipsis. A delayed tooltip exposes full time, title and calendar without animation, focus loss or hover reset. Movement within the same card does not redraw the list or restart the tooltip. Only changed hover rows are invalidated, and each row is painted through its own graphics buffer to avoid flicker. Hover and mouse activation share the painted rounded-card boundary; row gaps and outer corners are inactive. Leaving the card, scrolling, changing data or hiding the list clears its tooltip and cursor. Click or Enter opens a usable Google Calendar event link and hides the flyout; unavailable links use secondary title ink. Times follow the Windows time zone. Refresh preserves the selected card and scroll position when its event remains present.
+Event rows are 92 logical pixels high. Each card has 12px horizontal padding: a 9pt accent time or all-day label begins 7px below the card top, a 10pt bold title begins at 27px and wraps within a 34px two-line area, and 9pt source-calendar metadata begins at 64px beside a 5px source-color dot. A valid Meet action occupies an 80 × 23px neutral rounded button at the upper right, leaving the time label clear. Conflicting timed meetings add the accent label Пересечение on the metadata line. Long titles end with an ellipsis. A delayed tooltip exposes full time, title and calendar without animation, focus loss or hover reset. Movement within the same card does not redraw the list or restart the tooltip. Only changed hover rows are invalidated, and each row is painted through its own graphics buffer to avoid flicker. Hover and mouse activation share the painted rounded-card boundary; row gaps and outer corners are inactive. Leaving the card, scrolling, changing data or hiding the list clears its tooltip and cursor. Click or Enter opens a usable Google Calendar event link and hides the flyout; unavailable links use secondary title ink. Times follow the Windows time zone. Refresh preserves the selected card and scroll position when its event remains present.
 
 Connection state updates the event area and settings actions without rearranging the two panes:
 
@@ -175,6 +180,26 @@ Connection state updates the event area and settings actions without rearranging
 
 Refreshing stays asynchronous. Switching month or account must not allow a late response to replace the current view. Disconnecting clears the displayed account data immediately before attempting remote revocation; its transient status reports progress or a failure to finish. Cached data must never appear as a newly confirmed empty calendar.
 
+### Meeting tools and privacy
+
+A valid HTTPS Google Meet link from conference data or location enables Войти в Meet and Alt+Enter on the selected card. The card body and Enter retain the Google Calendar event action. Both routes hide the flyout before opening the browser; Google events remain read-only.
+
+Неделя switches the agenda to seven consecutive days starting at the selected date, including dates beyond the visible month grid; День restores one day. Week cards prefix time with their local day. Mark overlaps of timed events, excluding adjacent intervals, all-day events and copies with the same iCal UID and instance start.
+
+The next-meeting label uses the enabled background agenda independently of the browsed month. Ongoing timed meetings say Сейчас; a meeting later today shows a rounded-up minute countdown, and a later date shows its date and time. Ended and all-day entries are excluded. Update this label without repainting the cards.
+
+Private mode replaces titles with Занято and source labels with Календарь in cards, delayed tooltips and accessible row text, and masks the next-meeting label and taskbar tip. Preference calendar names become numbered generic labels. Times, conflict labels, source dots and actions remain usable. Saving applies immediately and clears stale tooltip content; source data is unchanged.
+
+### Local preferences
+
+Параметры opens three tabs inside the same flyout: Календари, Звук и тишина, Вид и приватность. Use the established neutral surface, hover fill, native checkboxes/combos, visible focus and an accent Save button. Save applies the draft; Back leaves active preferences unchanged. Store preferences separately using current-user DPAPI, and reset account-specific calendar selections and colors on successful account replacement or disconnection.
+
+The calendar list includes readable calendars even when they contain no events. Checkboxes filter date dots, cards, the next meeting and reminder evaluation together. Source dots use Google colors unless a local red, green, blue, violet, amber or pink override is chosen; these colors identify sources rather than introduce new global brand accents. Обновить список refreshes the catalog. Color overrides never write to Google.
+
+### Taskbar meeting tip
+
+When enabled, pointer dwell over the located pinned date for 650ms shows the next timed meeting in a separate non-activating, click-through tool window. Use Segoe UI 9.5pt, the event surface and primary ink, with 12px horizontal and 8px vertical padding. Its nominal 360 × 64px bounds scale at actual DPI, clamp to the monitor work area, and stay above the taskbar without covering the pin. Leaving the pin, opening the calendar, disabling the option or losing a usable next meeting hides it. Private mode masks its title. It adds no app-window indicator and never changes the pinned ICO.
+
 ### Inline Google setup
 
 Подключение replaces the calendar/settings content inside the same flyout. Client ID and password-masked Client secret fields occupy the left and right columns. A guide link, storage explanation and inline error text accompany neutral Назад and accent-filled Сохранить actions. Leaving the secret blank retains the stored secret for the same Client ID. The editor clears its fields on explicit back or successful save, while merely hiding the flyout preserves unfinished input. Repeated setup or sign-in commands reveal that existing editor. Background commands remain invisible.
@@ -185,17 +210,23 @@ Account authorization opens in the default browser. Reopening settings during au
 
 Honor each Google event's popup-notification timing, including inherited calendar defaults and explicit overrides. A due reminder adds a badge, ripple and visibly breathing outline over the pinned date, with a 1.8-second cycle. The contour expands up to 3 logical pixels on each side, increasing its opacity and stroke width; the badge grows with it while the white date remains readable. Keep this overlay above Explorer's taskbar on every frame without activating it. It passes clicks through, adds no taskbar button, and does not rewrite the ICO or invalidate Explorer's icon cache.
 
-An original soft two-note chime plays once when a pulse starts, including preview; subsequent animation frames do not replay it. The 1.1-second PCM waveform is synthesized locally, with gentle attack and release to avoid clicks. Windows audio settings determine its volume. Pending reminders persist in current-user DPAPI-encrypted state, including across restart, until the user clicks the date to acknowledge them. A later configured reminder can trigger again. Reduced-motion settings or High Contrast produce a static accent instead of animation; High Contrast uses the system highlight color. Проверить напоминание previews the same attention treatment until acknowledged.
+Three original synthesized PCM sounds — Мягкий перезвон, Кристалл and Тёплый тон — are selectable with local 0–100% volume and mute. Play once when attention becomes active; animation frames do not replay audio. Quiet hours silence automatic audio while retaining the visual accent. Same-day and overnight schedules work; equal endpoints mean silence all day. The explicit Прослушать action previews the selected sound and volume even during quiet hours or when automatic audio is muted.
+
+Pending reminders persist in current-user DPAPI-encrypted state across restart until the date command acknowledges them. Contextual Отложить на 5 мин and Отложить на 10 мин actions defer the active batch, or the most recently acknowledged batch within 15 minutes. Persist its deadline and entries locally; new due reminders remain independent and may activate attention during that interval. At the deadline the deferred batch returns. Google events and their notification settings remain unchanged. Disabling a calendar removes its pending, acknowledged and deferred entries.
+
+Pulse intensity offers Деликатная, Обычная and Выразительная, scaling the existing contour by 0.65, 1 or 1.25. The cycle remains 1.8 seconds and keeps the date readable. Reduced motion and High Contrast use a static accent; High Contrast uses the system highlight. Проверить напоминание previews the same attention treatment until acknowledged.
 
 ### Verification evidence
 
-All 229 native self-test checks pass, covering calendar state, keyboard controls, action dispatch, single-window navigation, tool-window styles, working-area placement and requested DPI geometry. Synthetic HTTP and UI tests cover multi-calendar loading, permission and refresh failures, cached offline data, account changes and event-link dispatch. Reminder tests cover notification defaults/overrides, timing, encrypted pending-state persistence, acknowledgement, click-through styles and absence of ICO rewrites.
+All 279 native self-test checks pass in artifacts/self-test.txt. Coverage includes the existing calendar, link dispatch, hover/no-flicker tooltip behavior, single-window navigation, styles, working-area placement, requested DPI geometry, synthetic multi-calendar responses and refresh failures. Feature tests cover Meet routing, seven-day ranges, conflict exclusions, source filters/colors, privacy and accessible text, preference persistence, sounds/quiet hours, pulse levels and the taskbar tip. Clock-controlled reminder tests cover 5/10-minute snooze deadlines, restart, independent new notifications and acknowledgement; they do not represent waiting through real five- or ten-minute intervals.
 
-Current light/dark captures at requested 96, 120 and 144 DPI are artifacts/google-events-{light,dark}-{96,120,144}.png, artifacts/calendar-settings-{light,dark}-{96,120,144}.png and artifacts/calendar-client-{light,dark}-{96,120,144}.png. They show the two-pane event view, inline settings and inline editor; fixture events are synthetic and editor fields are blank. artifacts/reminder-animation-frames.png illustrates the accent cycle. Requested-DPI renders do not establish real mixed-monitor transitions.
+The 27 current synthetic captures have been opened by the implementer and a fresh reviewer: artifacts/features-agenda-{light,dark}-{96,120,144}.png; artifacts/features-settings-{0,1,2}-{light,dark}-{96,120,144}.png; artifacts/features-private.png; artifacts/features-week.png; artifacts/features-taskbar-tooltip.png. They show the retained two-pane identity, all preference pages, private agenda, seven-day view and taskbar-tip design. Requested-DPI renders do not establish real mixed-monitor transitions. Existing OAuth-editor and reminder-animation captures remain earlier baseline evidence.
 
-Installed checks in artifacts/VerifyCurrentUi.ps1 confirm one hidden startup process, retained pin and enabled startup, a real account's selected-day event retrieval, and the 860 × 475 flyout at the user's actual 120 DPI. Calendar, settings, editor and repeated setup use the same window handle without an app-window style. The real reminder preview in artifacts/installed-reminder-accent.png is centered on the pinned date; native checks confirm click-through/non-activating styles, unchanged foreground window and ICO timestamp, and a date command hiding the accent while opening the calendar.
+The installed native probe artifacts/VerifyCurrentUi.ps1 passes: one hidden startup process; a real today row; the same flyout HWND for calendar, settings, preferences and client editor; no app-window style or running indicator; a correctly located, non-activating pinned reminder preview; unchanged ICO timestamp; and the date command stopping preview. The final application state is hidden. A read-only connected check returned six readable calendars, two events in a two-day range, two Meet links and two timed events with popup rules. These are aggregate observations only; no meetings were created and no new consent was requested.
 
-A real Google event's configured 16:03 reminder fired at 16:03:01 local time. Its pending state survived restart and the event's end. The initial overlay could be occluded by Explorer; maintaining topmost order every frame fixed that, and the stronger pulse is captured in artifacts/real-accent-0.png through artifacts/real-accent-5.png. The user confirmed that the pulse was visible and disappeared after clicking the date; the native watcher simultaneously confirmed a cleared pulse and visible calendar at 16:10:39. A follow-up probe confirmed the accent remained hidden 33 seconds later. Real mixed-monitor transitions and pinned-icon rollover after real midnight remain unverified.
+TaskbarMeetingTip is exercised as a real Form with controlled pin/pointer/clock inputs: show without activation, stable placement and hide off the pin. The user has not confirmed real pinned-date hover in this run. Real five/ten-minute snooze waiting, mixed-monitor transitions and actual-midnight pin rollover remain unverified.
+
+Earlier real-reminder evidence remains historical: a configured 16:03 Google reminder fired at 16:03:01 local time on 12 November 2026, survived restart and event end, and stopped after the user's click at 16:10:39. The user confirmed that stronger pulse and disappearance; artifacts/real-accent-0.png through artifacts/real-accent-5.png record it. That observation does not substitute for the new snooze or tooltip checks.
 
 ## Do's and Don'ts
 
@@ -205,7 +236,9 @@ A real Google event's configured 16:03 reminder fired at 16:03:01 local time. It
 - **Do** keep connection, startup and exit controls behind the gear inside the same flyout.
 - **Do** keep background startup invisible and the popup transient.
 - **Do** distinguish an empty day from loading, offline data and a request to sign in again.
-- **Do** preserve pending reminder attention until a date click and respect Windows motion preferences.
+- **Do** preserve pending attention until acknowledgement or explicit local snooze, and respect Windows motion/contrast preferences.
+- **Do** apply calendar filters and private labels consistently to visible, tooltip, accessible and background meeting surfaces.
+- **Do** keep quiet hours visual: suppress scheduled audio while retaining the reminder accent.
 - **Don't** add a separate taskbar button or running-app indicator for the popup.
 - **Don't** animate by rewriting the pinned date icon or rebuild separate modal setup windows.
 - **Don't** treat rendered DPI samples as proof of real mixed-monitor behavior or real-midnight rollover.

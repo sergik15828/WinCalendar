@@ -38,6 +38,15 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Card hover, tooltip and pointer activation share the visible rounded bounds; gaps are inactive. Delayed tooltips preserve flyout focus. A separate header close button hides the flyout without exiting the background updater.
 - An original soft two-note chime, synthesized locally as 1.1-second PCM audio, plays once at pulse activation, including preview; animation frames do not repeat it.
 - Full exit stops date updates; startup is an explicit user choice.
+- Version 0.6 extends the same flyout with a separate Meet action on each eligible card; the rest of the card still opens its Google Calendar event. Support structured conference links and a valid Meet URL in the location field. Alt+Enter opens Meet from a selected card.
+- Local snooze actions for 5 or 10 minutes become available after acknowledging a reminder. Persist the deferred batch with DPAPI; new reminders must remain independent. Do not change Google events or their reminder settings.
+- Display the next timed meeting, including an ongoing one, from the background agenda independently of the browsed month. Refresh the countdown without repainting event cards.
+- A Day/Week toggle displays seven days from the selected date, including events beyond the month grid. Mark overlapping timed meetings, exclude adjacent intervals and duplicate copies of one instance.
+- Calendar choices and local source colors affect days, cards, the next meeting and reminders consistently. Include calendars without events in the selection list; calendar settings reset on successful account replacement or disconnection.
+- Three original sounds, local volume, mute and manual preview live under preferences. Quiet hours silence audio while keeping visual attention; overnight intervals are supported, and equal endpoints mean silence all day. Manual audio preview is explicit and bypasses the schedule.
+- Privacy masks meeting and calendar names in cards, tooltip/accessibility text, the next-meeting label and taskbar tooltip. Apply saved preferences immediately; calendar names in preference selection are also masked while privacy is enabled.
+- Pulse intensity has three levels while respecting Windows motion/contrast settings. An optional non-activating taskbar tooltip shows the next meeting; it must not cover the pinned icon, steal focus or create an application indicator.
+- Preferences use separate current-user DPAPI storage. Calendar, account configuration and all preference pages share one reusable window. Save applies changes; Back leaves the active settings unchanged.
 
 ## Brand commitments
 

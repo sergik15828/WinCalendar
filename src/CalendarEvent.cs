@@ -12,6 +12,9 @@ namespace WinCalendar
         public string Id { get; set; }
         public string Title { get; set; }
         public string Url { get; set; }
+        public string MeetUrl { get; set; }
+        public string CalendarColor { get; set; }
+        public string ICalUid { get; set; }
         public bool AllDay { get; set; }
         public string Start { get; set; }
         public string End { get; set; }
@@ -94,9 +97,36 @@ namespace WinCalendar
                 bool custom = reminders != null && reminders.TryGetValue("useDefault", out useDefault) && Object.Equals(useDefault, false);
                 List<int> minutes = custom ? (reminders.TryGetValue("overrides", out overrides) ? GoogleReminderRules.PopupMinutes(overrides) : new List<int>()) : new List<int>(defaultMinutes);
                 page.Events.Add(new CalendarEvent { Id = Json.Text(data, "id"), Title = String.IsNullOrWhiteSpace(title) ? "Без названия" : title,
-                    Url = SafeGoogleLink(Json.Text(data, "htmlLink")), AllDay = allDay, Start = from, End = to, PopupReminderMinutes = minutes });
+                    Url = SafeGoogleLink(Json.Text(data, "htmlLink")), MeetUrl = MeetLink(data), ICalUid = Json.Text(data, "iCalUID"), AllDay = allDay, Start = from, End = to, PopupReminderMinutes = minutes });
             }
             return page;
+        }
+
+        private static string MeetLink(Dictionary<string, object> data)
+        {
+            string direct = SafeMeetLink(Json.Text(data, "hangoutLink")); if (direct != null) return direct;
+            object conference, points;
+            if (data.TryGetValue("conferenceData", out conference))
+            {
+                var details = conference as Dictionary<string, object>;
+                if (details != null && details.TryGetValue("entryPoints", out points))
+                    foreach (object point in (IEnumerable)points)
+                    {
+                        var entry = point as Dictionary<string, object>;
+                        if (entry != null && Json.Text(entry, "entryPointType") == "video")
+                        { string link = SafeMeetLink(Json.Text(entry, "uri")); if (link != null) return link; }
+                    }
+            }
+            string location = (Json.Text(data, "location") ?? "").Trim();
+            if (location.StartsWith("meet.google.com/", StringComparison.OrdinalIgnoreCase)) location = "https://" + location;
+            return SafeMeetLink(location);
+        }
+        internal static string SafeMeetLink(string link)
+        {
+            Uri uri;
+            return Uri.TryCreate(link, UriKind.Absolute, out uri) && uri.Scheme == "https" && uri.Host == "meet.google.com"
+                && uri.UserInfo.Length == 0 && uri.IsDefaultPort
+                && System.Text.RegularExpressions.Regex.IsMatch(uri.AbsolutePath, @"^/(?:[a-z]{3}-[a-z]{4}-[a-z]{3}|lookup/[a-zA-Z0-9_-]+)$") ? uri.AbsoluteUri : null;
         }
 
         internal static string SafeGoogleLink(string link)

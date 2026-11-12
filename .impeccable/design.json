@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-12T13:12:01.439227+00:00",
+  "generatedAt": "2026-11-12T15:42:31.784749+00:00",
   "title": "Design System: WinCalendar",
   "extensions": {
     "colorMeta": {
@@ -345,6 +345,10 @@
       "calendar-event-detail": {
         "displayName": "Event Detail",
         "purpose": "Accent time and secondary source-calendar metadata."
+      },
+      "calendar-preferences": {
+        "displayName": "Preference and tip text",
+        "purpose": "9.5pt Segoe UI for the three local preference pages and optional taskbar meeting tip."
       }
     },
     "shadows": [],
@@ -352,35 +356,40 @@
       {
         "name": "reminder-breathe",
         "value": "1800ms cosine cycle; contour expands 0–3 logical px per side",
-        "purpose": "Visible persistent badge/ripple/outline until acknowledgement. Contour alpha 65–240 and width 1.25–2.5px; badge radius 3–4.5px; ripple radius 5–11px. Static with Windows reduced motion or High Contrast."
+        "purpose": "Existing breathing contour, badge and ripple until acknowledgement or snooze. Selectable intensity factors 0.65, 1 and 1.25; static under Windows reduced motion or High Contrast. Animation never rewrites the ICO."
       }
     ],
     "breakpoints": [],
     "native": {
       "platform": "Windows 11",
-      "host": "One reusable borderless Windows Forms tool window for calendar, settings and OAuth editing; no app-window taskbar button.",
-      "interaction": "Pinned date toggles the flyout and acknowledges pending reminders. Gear opens inline settings. Background startup remains hidden.",
+      "host": "One reusable 688 × 380 logical-pixel borderless Windows Forms tool window for calendar, settings, three preference pages and OAuth editing; no app-window taskbar button.",
+      "interaction": "Pinned date toggles the flyout and acknowledges pending reminders. Gear opens inline settings and local preferences. Meet action/Alt+Enter joins; card/Enter opens its event. Background startup remains hidden.",
       "identity": "Incumbent red/white weekday/day icon and native executable identity; no explicit AppUserModelID.",
       "elevation": "Windows native shadow and requested DWM rounded corners; event cards have borders and no shadows.",
       "dpi": "688 × 380 logical pixels; actual window DPI scales bounds, fonts and painting; constrained work areas scroll.",
-      "reminders": "Non-activating, click-through layered overlay kept above Explorer every frame; Google popup-notification rules; current-user DPAPI pending state; no ICO rewrite."
+      "reminders": "Non-activating, click-through layered overlay kept above Explorer; Google popup rules; current-user DPAPI pending and snoozed-batch state; independent new notifications; three local sounds, volume/mute, quiet hours and pulse levels; no ICO rewrite.",
+      "taskbarTip": "Optional 650ms pointer dwell over the pin; 360 × 64 logical-pixel non-activating click-through Form above the taskbar. Hide off-pin or when calendar opens; private mode masks title.",
+      "preferences": "Three inline tabs: calendars/source-color overrides; sound/volume/quiet hours; privacy/pulse/taskbar tip. DPAPI local storage, Save applies and Back discards the draft. Google remains read-only."
     },
     "verification": {
-      "tests": "artifacts/self-test.txt — all 201 checks pass",
+      "tests": "artifacts/self-test.txt — all 279 native checks pass",
       "renders": [
-        "artifacts/google-events-{light,dark}-{96,120,144}.png",
-        "artifacts/calendar-settings-{light,dark}-{96,120,144}.png",
-        "artifacts/calendar-client-{light,dark}-{96,120,144}.png",
-        "artifacts/reminder-animation-frames.png"
+        "artifacts/features-agenda-{light,dark}-{96,120,144}.png",
+        "artifacts/features-settings-{0,1,2}-{light,dark}-{96,120,144}.png",
+        "artifacts/features-private.png",
+        "artifacts/features-week.png",
+        "artifacts/features-taskbar-tooltip.png"
       ],
-      "verified": "Installed 0.5: one hidden startup process; preserved pin and enabled startup; real selected-day event retrieval; 860 × 475 at actual 120 DPI; one shared calendar/settings/editor window without app-window style. Actual preview overlay is centered on the pin, click-through and non-activating, with unchanged foreground and ICO timestamp; date click acknowledges it and opens the calendar.",
+      "verified": "Installed 0.6 native probe passes: one hidden startup process, real today row, same calendar/settings/preferences/client-editor HWND, no app-window/indicator, pinned preview correctly located without activation or ICO rewrite, date command stops preview, final hidden state. All 27 feature captures opened by implementer and fresh reviewer.",
       "limits": [
         "Requested DPI renders do not verify real mixed-monitor transitions.",
-        "Pinned-icon rollover after real midnight remains unverified."
+        "Pinned-icon rollover after real midnight remains unverified.",
+        "Actual pinned-date hover has no user confirmation in this run.",
+        "No real five/ten-minute snooze waiting was performed."
       ],
       "installedProbe": "artifacts/VerifyCurrentUi.ps1",
       "actualReminderPreview": "artifacts/installed-reminder-accent.png",
-      "realScheduledReminder": "Configured real Google reminder at 16:03 fired at 16:03:01 local time. Pending state survived restart and event end. User confirmed visible stronger pulse and disappearance after clicking; native watcher confirmed pulse false and calendar visible at 16:10:39. Follow-up native probe confirmed the accent remained hidden 33 seconds after the click.",
+      "realScheduledReminder": "Historical baseline on 2026-11-12: configured Google reminder at 16:03 fired at 16:03:01 local; pending state survived restart and event end. User confirmed visible stronger pulse and disappearance after clicking; native watcher confirmed pulse false and calendar visible at 16:10:39, still hidden 33 seconds later. This does not validate new snooze or tooltip behavior.",
       "realReminderCaptures": [
         "artifacts/real-accent-0.png",
         "artifacts/real-accent-1.png",
@@ -388,7 +397,10 @@
         "artifacts/real-accent-3.png",
         "artifacts/real-accent-4.png",
         "artifacts/real-accent-5.png"
-      ]
+      ],
+      "connectedRead": "Read-only aggregate: six readable calendars, two events in a two-day range, two Meet links, two timed events configured with popup reminders. No new meetings or consent.",
+      "taskbarTip": "Real Form tested with controlled anchor, pointer and clock: no activation, stable placement and hide off pin. No user confirmation of actual pinned-date hover in this run.",
+      "snooze": "Clock-controlled tests cover 5/10-minute deadlines, restart persistence and independent new notifications; actual five/ten-minute waiting was not performed."
     }
   },
   "components": [
@@ -404,17 +416,17 @@
       "name": "Event card — light",
       "kind": "card",
       "refersTo": "event-card-light",
-      "description": "Native event-card preview: accent time, bold two-line title and source-calendar metadata; 92px row pitch.",
-      "html": "<button class=\"ds-event-card-light\" type=\"button\" title=\"10:00 — 11:00, Планирование недели — синтетический пример, Команда\"><span class=\"ds-event-time\">10:00 — 11:00</span><span class=\"ds-event-title\">Планирование недели — синтетический пример</span><span class=\"ds-event-source\">Команда</span></button>",
-      "css": ".ds-event-card-light{position:relative;display:block;width:309px;height:84px;margin:3px 1px 5px;padding:0;border:1px solid #DEDEDE;border-radius:8px;background:#FFFFFF;color:#202020;font-family:\"Segoe UI\",sans-serif;text-align:left;cursor:pointer}.ds-event-card-light:hover,.ds-event-card-light:active{background:#E8E8E8}.ds-event-card-light:focus-visible{outline:1px dotted #202020;outline-offset:-4px}.ds-event-card-light .ds-event-time{position:absolute;left:12px;right:12px;top:7px;height:18px;font-size:9pt;color:#C42B36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event-card-light .ds-event-title{position:absolute;left:12px;right:12px;top:27px;height:34px;font-size:10pt;font-weight:700;line-height:17px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.ds-event-card-light .ds-event-source{position:absolute;left:12px;right:12px;top:64px;height:16px;font-size:9pt;color:#626262;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+      "description": "92px native card pitch; source-color dot, conflict label and independent Meet action. Body/Enter opens Calendar; Meet/Alt+Enter joins. Private mode masks title/source in visible, tooltip and accessible text.",
+      "html": "<div role=\"group\" tabindex=\"0\" class=\"ds-event-card-light\" type=\"button\" title=\"10:00 — 11:00, Планирование недели — синтетический пример, Команда\"><span class=\"ds-event-time\">10:00 — 11:00</span><span class=\"ds-event-title\">Планирование недели — синтетический пример</span><span class=\"ds-event-source\"><i class=\"ds-source-dot\"></i>Команда</span><span class=\"ds-conflict\">Пересечение</span><button class=\"ds-meet\" type=\"button\" aria-label=\"Войти в Meet: Alt+Enter\">Войти в Meet</button></div>",
+      "css": ".ds-event-card-light{position:relative;display:block;width:309px;height:84px;margin:3px 1px 5px;padding:0;border:1px solid #DEDEDE;border-radius:8px;background:#FFFFFF;color:#202020;font-family:\"Segoe UI\",sans-serif;text-align:left;cursor:pointer}.ds-event-card-light:hover,.ds-event-card-light:active{background:#E8E8E8}.ds-event-card-light:focus-visible{outline:1px dotted #202020;outline-offset:-4px}.ds-event-card-light .ds-event-time{position:absolute;left:12px;right:104px;top:7px;height:18px;font-size:9pt;color:#C42B36;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event-card-light .ds-event-title{position:absolute;left:12px;right:12px;top:27px;height:34px;font-size:10pt;font-weight:700;line-height:17px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.ds-event-card-light .ds-event-source{position:absolute;left:12px;right:114px;top:64px;height:16px;font-size:9pt;color:#626262;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event-card-light .ds-source-dot{display:inline-block;width:5px;height:5px;margin-right:5px;border-radius:50%;background:#247A53}.ds-event-card-light .ds-conflict{position:absolute;right:12px;top:64px;color:#C42B36;font-size:9pt}.ds-event-card-light .ds-meet{position:absolute;right:12px;top:5px;width:80px;height:23px;border:0;border-radius:5px;background:#E8E8E8;color:#202020;font:9pt \"Segoe UI\",sans-serif;cursor:pointer}.ds-event-card-light .ds-meet:hover{outline:1px solid #C42B36}.ds-event-card-light .ds-meet:focus-visible{outline:1px dotted #202020;outline-offset:-3px}.ds-event-card-light .ds-meet:active{opacity:.8}"
     },
     {
       "name": "Event card — dark",
       "kind": "card",
       "refersTo": "event-card-dark",
-      "description": "Native event-card preview: accent time, bold two-line title and source-calendar metadata; 92px row pitch.",
-      "html": "<button class=\"ds-event-card-dark\" type=\"button\" title=\"10:00 — 11:00, Планирование недели — синтетический пример, Команда\"><span class=\"ds-event-time\">10:00 — 11:00</span><span class=\"ds-event-title\">Планирование недели — синтетический пример</span><span class=\"ds-event-source\">Команда</span></button>",
-      "css": ".ds-event-card-dark{position:relative;display:block;width:309px;height:84px;margin:3px 1px 5px;padding:0;border:1px solid #444444;border-radius:8px;background:#292929;color:#F5F5F5;font-family:\"Segoe UI\",sans-serif;text-align:left;cursor:pointer}.ds-event-card-dark:hover,.ds-event-card-dark:active{background:#383838}.ds-event-card-dark:focus-visible{outline:1px dotted #F5F5F5;outline-offset:-4px}.ds-event-card-dark .ds-event-time{position:absolute;left:12px;right:12px;top:7px;height:18px;font-size:9pt;color:#FF8B91;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event-card-dark .ds-event-title{position:absolute;left:12px;right:12px;top:27px;height:34px;font-size:10pt;font-weight:700;line-height:17px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.ds-event-card-dark .ds-event-source{position:absolute;left:12px;right:12px;top:64px;height:16px;font-size:9pt;color:#BDBDBD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+      "description": "92px native card pitch; source-color dot, conflict label and independent Meet action. Body/Enter opens Calendar; Meet/Alt+Enter joins. Private mode masks title/source in visible, tooltip and accessible text.",
+      "html": "<div role=\"group\" tabindex=\"0\" class=\"ds-event-card-dark\" type=\"button\" title=\"10:00 — 11:00, Планирование недели — синтетический пример, Команда\"><span class=\"ds-event-time\">10:00 — 11:00</span><span class=\"ds-event-title\">Планирование недели — синтетический пример</span><span class=\"ds-event-source\"><i class=\"ds-source-dot\"></i>Команда</span><span class=\"ds-conflict\">Пересечение</span><button class=\"ds-meet\" type=\"button\" aria-label=\"Войти в Meet: Alt+Enter\">Войти в Meet</button></div>",
+      "css": ".ds-event-card-dark{position:relative;display:block;width:309px;height:84px;margin:3px 1px 5px;padding:0;border:1px solid #444444;border-radius:8px;background:#292929;color:#F5F5F5;font-family:\"Segoe UI\",sans-serif;text-align:left;cursor:pointer}.ds-event-card-dark:hover,.ds-event-card-dark:active{background:#383838}.ds-event-card-dark:focus-visible{outline:1px dotted #F5F5F5;outline-offset:-4px}.ds-event-card-dark .ds-event-time{position:absolute;left:12px;right:104px;top:7px;height:18px;font-size:9pt;color:#FF8B91;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event-card-dark .ds-event-title{position:absolute;left:12px;right:12px;top:27px;height:34px;font-size:10pt;font-weight:700;line-height:17px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.ds-event-card-dark .ds-event-source{position:absolute;left:12px;right:114px;top:64px;height:16px;font-size:9pt;color:#BDBDBD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event-card-dark .ds-source-dot{display:inline-block;width:5px;height:5px;margin-right:5px;border-radius:50%;background:#247A53}.ds-event-card-dark .ds-conflict{position:absolute;right:12px;top:64px;color:#FF8B91;font-size:9pt}.ds-event-card-dark .ds-meet{position:absolute;right:12px;top:5px;width:80px;height:23px;border:0;border-radius:5px;background:#383838;color:#F5F5F5;font:9pt \"Segoe UI\",sans-serif;cursor:pointer}.ds-event-card-dark .ds-meet:hover{outline:1px solid #FF8B91}.ds-event-card-dark .ds-meet:focus-visible{outline:1px dotted #F5F5F5;outline-offset:-3px}.ds-event-card-dark .ds-meet:active{opacity:.8}"
     },
     {
       "name": "Settings gear",
@@ -454,28 +466,36 @@
     {
       "name": "Reminder accent",
       "kind": "custom",
-      "description": "Illustrative overlay preview: visible 1.8s breathing contour, growing badge and ripple. Production stays above Explorer without activation, passes clicks through, and does not rewrite the icon.",
+      "description": "Illustrative normal-intensity 1.8s overlay; delicate/expressive scale contour by 0.65/1.25. Local snooze defers a batch for 5/10 minutes; new reminders remain independent. Audio has three local styles, volume/mute and quiet hours; visual attention remains.",
       "html": "<div class=\"ds-reminder\" role=\"img\" aria-label=\"Есть неподтверждённое напоминание\"><div class=\"ds-reminder-icon\"><b>ЧТ</b><strong>12</strong></div><span class=\"ds-reminder-outline\"></span><span class=\"ds-reminder-ripple\"></span><span class=\"ds-reminder-badge\"></span></div>",
       "css": ".ds-reminder{position:relative;width:48px;height:48px;font-family:\"Segoe UI\",sans-serif;pointer-events:none}.ds-reminder-icon{position:absolute;left:8px;top:8px;width:32px;height:32px;border-radius:6px;background:#FCFCFC;overflow:hidden;text-align:center}.ds-reminder-icon b{display:block;height:14px;background:#C42B36;color:#FFFFFF;font-size:11px}.ds-reminder-icon strong{color:#18181B;font-size:18px;line-height:18px}.ds-reminder-outline{position:absolute;box-sizing:border-box;left:8px;top:8px;width:32px;height:32px;border:1.25px solid #C42B36;border-radius:6px;opacity:.255;animation:ds-reminder-outline 1.8s ease-in-out infinite}.ds-reminder-badge{position:absolute;box-sizing:border-box;left:33px;top:9px;width:6px;height:6px;border:.9px solid #FFFFFF;border-radius:50%;background:#C42B36;opacity:.706;animation:ds-reminder-badge 1.8s ease-in-out infinite}.ds-reminder-ripple{position:absolute;box-sizing:border-box;left:31px;top:7px;width:10px;height:10px;border:1.4px solid #C42B36;border-radius:50%;opacity:.588;animation:ds-reminder-ripple 1.8s linear infinite}@keyframes ds-reminder-outline{50%{left:5px;top:5px;width:38px;height:38px;border-width:2.5px;border-radius:9px;opacity:.941}}@keyframes ds-reminder-badge{50%{left:31.5px;top:7.5px;width:9px;height:9px;opacity:1}}@keyframes ds-reminder-ripple{to{left:25px;top:1px;width:22px;height:22px;opacity:0}}@media(prefers-reduced-motion:reduce),(forced-colors:active){.ds-reminder-outline,.ds-reminder-badge,.ds-reminder-ripple{animation:none;opacity:1}.ds-reminder-ripple{display:none}}@media(forced-colors:active){.ds-reminder-outline{border-color:Highlight}.ds-reminder-badge{background:Highlight}}"
+    },
+    {
+      "name": "Next meeting taskbar tip",
+      "kind": "custom",
+      "description": "Portable static preview of the optional native tip after 650ms dwell. Production uses a click-through, non-activating Form; private mode replaces the title with Занято.",
+      "html": "<div class=\"ds-next-tip\" role=\"status\">Через 12 мин · Планирование недели — синтетический пример</div>",
+      "css": ".ds-next-tip{width:336px;min-height:48px;padding:8px 12px;background:#FFFFFF;color:#202020;font:9.5pt \"Segoe UI\",sans-serif;overflow:hidden;text-overflow:ellipsis;pointer-events:none}"
     }
   ],
   "narrative": {
     "overview": "The date icon remains the product's primary surface: red weekday strip, white paper, large day number, and Segoe UI. Clicking it toggles a compact two-pane calendar: month navigation on the left, clearly separated meeting cards on the right. The approved wider layout preserves the icon's identity and restrained theme-aware surfaces while making meetings easier to scan.\n\nBackground startup keeps the native host minimized and opens neither popup nor browser. Once pinned, the launcher remains visible while the host removes its own taskbar button. The calendar must preserve this absence of a running-app indicator.",
     "keyCharacteristics": [
-      "Calendar left, meetings right, with a fine vertical divider.",
-      "Compact type hierarchy and distinct event time, title and source-calendar roles.",
-      "Settings and OAuth editing stay inside one reusable native tool window.",
-      "A visible breathing reminder persists until the user clicks the date."
+      "Calendar left, meetings right, within the retained 688 × 380 logical-pixel shell.",
+      "Event time, two-line title, local source color, conflict label and a separate Meet action.",
+      "Calendar, settings, all three preference tabs and OAuth editing reuse one native tool window.",
+      "Current/next meeting, seven-day agenda and consistent privacy masks across visible and accessible surfaces.",
+      "Local snooze, three sounds, volume/mute, quiet hours and pulse strength preserve read-only Google behavior."
     ],
     "rules": [],
     "dos": [
-      "**Do** preserve the established icon geometry, palette, large glyphs, and executable identity.",
-      "**Do** keep theme contrast, distinct today/selection states, keyboard focus, and readable scaled labels.",
-      "**Do** keep meetings to the right of the calendar with clearly separated cards and source-calendar labels.",
-      "**Do** keep connection, startup and exit controls behind the gear inside the same flyout.",
-      "**Do** keep background startup invisible and the popup transient.",
-      "**Do** distinguish an empty day from loading, offline data and a request to sign in again.",
-      "**Do** preserve pending reminder attention until a date click and respect Windows motion preferences."
+      "Do preserve the established icon geometry, palette, glyphs and native executable identity.",
+      "Do retain theme contrast, visible keyboard focus and readable DPI-scaled labels.",
+      "Do apply calendar filters and privacy consistently to cards, date dots, tooltips, accessible text and background attention.",
+      "Do keep calendar, settings, preferences and OAuth editing inside one reusable flyout.",
+      "Do keep background startup hidden, reminder overlays click-through, and taskbar tips non-activating.",
+      "Do retain visual attention during quiet hours and defer only the selected local reminder batch.",
+      "Do distinguish loading, empty, offline snapshots and renewed sign-in."
     ],
     "donts": [
       "**Don't** add a separate taskbar button or running-app indicator for the popup.",

@@ -44,9 +44,10 @@ namespace WinCalendar
                 Publish(new CalendarViewData { Connection = CalendarConnection.Disconnected, Message = "Подключите Google, чтобы видеть встречи." }); return;
             }
             string identity = source.CacheIdentity;
-            string key = identity + first.ToString("o") + zone.Id;
+            string rangeIdentity = identity + ":range:" + end.ToString("yyyyMMdd");
+            string key = rangeIdentity + first.ToString("o") + zone.Id;
             CalendarSnapshot snapshot;
-            if (!memory.TryGetValue(key, out snapshot)) snapshot = cache.Read(identity, first, zone);
+            if (!memory.TryGetValue(key, out snapshot)) snapshot = cache.Read(rangeIdentity, first, zone);
             bool fresh = snapshot != null && DateTime.UtcNow - snapshot.UpdatedUtc < TimeSpan.FromMinutes(2);
             bool canLoad = force || (!fresh && DateTime.UtcNow >= retryAfter);
             Publish(FromSnapshot(snapshot, canLoad, null));
@@ -58,7 +59,7 @@ namespace WinCalendar
                 if (disposed || request != generation || identity != source.CacheIdentity) return;
                 snapshot = new CalendarSnapshot { UpdatedUtc = DateTime.UtcNow, Events = events };
                 memory[key] = snapshot;
-                bool saved = cache.Write(identity, first, zone, snapshot);
+                bool saved = cache.Write(rangeIdentity, first, zone, snapshot);
                 retryAfter = DateTime.MinValue;
                 Publish(FromSnapshot(snapshot, false, saved ? null : "Встречи обновлены; локальный кеш недоступен."));
             }
