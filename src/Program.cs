@@ -15,6 +15,8 @@ namespace WinCalendar
         internal const int StartupOffCommand = 2;
         internal const int ExitCommand = 3;
         internal const int MenuCommand = 4;
+        internal const int OpenCalendarCommand = 5;
+        internal const string GoogleCalendarUrl = "https://calendar.google.com/calendar/";
 
         [STAThread]
         private static int Main(string[] args)
@@ -27,19 +29,18 @@ namespace WinCalendar
                     return 0;
                 }
                 if (args.Length == 2 && args[0] == "--self-test") return SelfTest.Run(args[1]);
-                if (args.Length > 1 || (args.Length == 1 && args[0] != "--background" && args[0] != "--startup-on" && args[0] != "--startup-off" && args[0] != "--exit"))
+                int command = GetLaunchCommand(args.Length == 0 ? null : args[0]);
+                if (args.Length > 1 || command < 0)
                 {
-                    MessageBox.Show("Неизвестный параметр запуска. Откройте WinCalendar.exe без параметров.", "WinCalendar");
+                    MessageBox.Show("Неизвестный параметр запуска. Откройте WinDate.exe без параметров.", "WinCalendar");
                     return 2;
                 }
                 bool firstInstance;
-                int command = args.Length == 0 || args[0] == "--background" ? RefreshCommand :
-                    args[0] == "--startup-on" ? StartupOnCommand : args[0] == "--startup-off" ? StartupOffCommand : ExitCommand;
                 using (Mutex mutex = new Mutex(true, @"Local\WinCalendar.Desktop.Prototype", out firstInstance))
                 {
                     if (!firstInstance)
                     {
-                        PostCommand(args.Length == 0 ? MenuCommand : command, 0);
+                        PostCommand(command, 0);
                         return 0;
                     }
                     try
@@ -51,6 +52,11 @@ namespace WinCalendar
                         Application.EnableVisualStyles();
                         Application.SetCompatibleTextRenderingDefault(false);
                         DateTaskbarWindow window = new DateTaskbarWindow(true, delegate { return DateTime.Now; });
+                        window.Shown += delegate
+                        {
+                            if (command == OpenCalendarCommand) window.BeginInvoke(new Action(OpenGoogleCalendar));
+                            else if (command == MenuCommand) PostCommand(MenuCommand, Process.GetCurrentProcess().Id);
+                        };
                         Application.Run(window);
                     }
                     finally { mutex.ReleaseMutex(); }
@@ -62,6 +68,22 @@ namespace WinCalendar
                 MessageBox.Show("Не удалось запустить индикатор даты.\n\n" + error.Message, "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
+        }
+
+        internal static int GetLaunchCommand(string argument)
+        {
+            if (argument == null) return OpenCalendarCommand;
+            if (argument == "--background") return RefreshCommand;
+            if (argument == "--startup-on") return StartupOnCommand;
+            if (argument == "--startup-off") return StartupOffCommand;
+            if (argument == "--exit") return ExitCommand;
+            if (argument == "--menu") return MenuCommand;
+            return -1;
+        }
+
+        internal static void OpenGoogleCalendar()
+        {
+            Process.Start(new ProcessStartInfo(GoogleCalendarUrl) { UseShellExecute = true });
         }
 
         internal static bool PostCommand(int command, int targetProcess)

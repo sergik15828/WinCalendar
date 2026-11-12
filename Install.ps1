@@ -16,6 +16,7 @@ if ($changed) {
     Copy-Item $sourceExe $installedExe -Force
 }
 Copy-Item (Join-Path $sourceDir 'WinDate.exe.config') ($installedExe + '.config') -Force
+Copy-Item (Join-Path $root 'Settings.cmd') (Join-Path $installDir 'Settings.cmd') -Force
 # Keep an existing startup preference when moving out of the development folder.
 $run = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\Windows\CurrentVersion\Run', $true)
 if ($null -ne $run) {

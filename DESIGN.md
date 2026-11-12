@@ -27,7 +27,7 @@ components:
 
 # WinCalendar design
 
-The product's entire visible surface is the date icon in the Windows taskbar. There is no calendar window. Launch, click, and repeated launch keep the native taskbar host minimized. Clicking the date opens a small native menu for startup and exit. A pinned launcher stays visible while the native host removes its own taskbar button, eliminating the running-app underline.
+The product's main visible surface is the date icon in the Windows taskbar. There is no calendar window. Clicking the date opens Google Calendar in the default browser. Background startup keeps the native host minimized and never opens the browser. Settings.cmd and the Start menu settings shortcut open the native startup/exit menu. A pinned launcher stays visible while the native host removes its own taskbar button, eliminating the running-app underline.
 
 ## Date icon
 

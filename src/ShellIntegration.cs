@@ -27,12 +27,27 @@ namespace WinCalendar
             get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "WinCalendar", "WinCalendar.lnk"); }
         }
 
+        internal static string SettingsShortcutPath
+        {
+            get { return Path.Combine(Path.GetDirectoryName(ShortcutPath), "WinCalendar Settings.lnk"); }
+        }
+
         private static string LegacyExecutable
         {
             get { return Path.Combine(Path.GetDirectoryName(Executable), "WinCalendar.exe"); }
         }
 
         internal static string StartupCommand
+        {
+            get { return "\"" + Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe") + "\" \"" + StartupShortcutPath + "\""; }
+        }
+
+        internal static string StartupShortcutPath
+        {
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "Startup.lnk"); }
+        }
+
+        private static string PreviousStartupCommand
         {
             get { return "\"" + Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe") + "\" \"" + Executable + "\""; }
         }
@@ -63,6 +78,7 @@ namespace WinCalendar
         internal static void EnsureAppShortcut()
         {
             CalendarIcon.Save(IconPath, CalendarIcon.Create(DateTime.Today));
+            CreateAppShortcut(StartupShortcutPath, IconPath, "--background");
             // Preserve an already enabled startup entry when migrating the binary
             // from the calendar prototype to the date-only executable.
             if (!String.Equals(Executable, LegacyExecutable, StringComparison.OrdinalIgnoreCase))
@@ -73,15 +89,17 @@ namespace WinCalendar
                     {
                         string existing = key.GetValue("WinCalendar") as string;
                         if (String.Equals(existing, "\"" + LegacyExecutable + "\" --background", StringComparison.OrdinalIgnoreCase)
-                            || String.Equals(existing, "\"" + Executable + "\" --background", StringComparison.OrdinalIgnoreCase))
+                            || String.Equals(existing, "\"" + Executable + "\" --background", StringComparison.OrdinalIgnoreCase)
+                            || String.Equals(existing, PreviousStartupCommand, StringComparison.OrdinalIgnoreCase))
                             key.SetValue("WinCalendar", StartupCommand);
                     }
                 }
             }
             CreateAppShortcut(ShortcutPath, IconPath);
+            CreateAppShortcut(SettingsShortcutPath, IconPath, "--menu");
         }
 
-        internal static void CreateAppShortcut(string shortcutPath, string iconPath)
+        internal static void CreateAppShortcut(string shortcutPath, string iconPath, string arguments = "")
         {
             bool existed = File.Exists(shortcutPath);
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(shortcutPath)));
@@ -89,6 +107,7 @@ namespace WinCalendar
             try
             {
                 link.SetPath(Executable);
+                link.SetArguments(arguments);
                 link.SetWorkingDirectory(Path.GetDirectoryName(Executable));
                 link.SetDescription("Текущая дата в панели задач");
                 link.SetIconLocation(iconPath, 0);
@@ -203,6 +222,7 @@ namespace WinCalendar
                     if (key == null) return false;
                     string value = key.GetValue("WinCalendar") as string;
                     return String.Equals(value, StartupCommand, StringComparison.OrdinalIgnoreCase)
+                        || String.Equals(value, PreviousStartupCommand, StringComparison.OrdinalIgnoreCase)
                         || String.Equals(value, "\"" + Executable + "\" --background", StringComparison.OrdinalIgnoreCase);
                 }
             }
@@ -210,7 +230,11 @@ namespace WinCalendar
             {
                 using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RunKey))
                 {
-                    if (value) key.SetValue("WinCalendar", StartupCommand);
+                    if (value)
+                    {
+                        CreateAppShortcut(StartupShortcutPath, IconPath, "--background");
+                        key.SetValue("WinCalendar", StartupCommand);
+                    }
                     else key.DeleteValue("WinCalendar", false);
                 }
             }

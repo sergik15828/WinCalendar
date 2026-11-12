@@ -22,7 +22,9 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Fill the existing icon slot with larger weekday and day glyphs; do not change global Windows scale settings.
 - Keep a minimized native host alive for the taskbar button and automatic date updates.
 - The user pins and reorders the application using Windows itself.
-- Startup and Exit in the small menu opened by clicking the date.
+- Clicking the date opens Google Calendar in the default browser.
+- Startup and Exit remain available through Settings.cmd and the Start menu settings shortcut.
+- Background startup must never open the browser.
 - Offline, no accounts or calendar service integration.
 - Full exit stops date updates; startup is an explicit user choice.
 

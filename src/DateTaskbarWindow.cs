@@ -38,6 +38,8 @@ namespace WinCalendar
             MaximizeBox = false;
             taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
             menu = new ContextMenuStrip();
+            menu.Items.Add("Открыть Google Календарь", null, delegate { Program.OpenGoogleCalendar(); });
+            menu.Items.Add(new ToolStripSeparator());
             startup = new ToolStripMenuItem("Запускать с Windows") { CheckOnClick = true };
             startup.Click += delegate { ShellIntegration.StartsWithWindows = startup.Checked; };
             menu.Items.Add(startup);
@@ -141,7 +143,7 @@ namespace WinCalendar
                 {
                     if (integrateWithShell && command == 0xf120)
                     {
-                        ShowMenu();
+                        Program.OpenGoogleCalendar();
                     }
                     return;
                 }
@@ -155,6 +157,7 @@ namespace WinCalendar
                     if (integrateWithShell) ShellIntegration.StartsWithWindows = command == Program.StartupOnCommand;
                 }
                 else if (command == Program.MenuCommand && integrateWithShell) ShowMenu();
+                else if (command == Program.OpenCalendarCommand && integrateWithShell) Program.OpenGoogleCalendar();
                 else RefreshDate(false);
                 return;
             }

@@ -27,6 +27,9 @@ namespace WinCalendar
             int code = 0;
             try
             {
+                Check(Program.GetLaunchCommand(null) == Program.OpenCalendarCommand, "Icon click opens Google Calendar");
+                Check(Program.GetLaunchCommand("--background") == Program.RefreshCommand, "Background startup does not open the browser");
+                Check(Program.GetLaunchCommand("--menu") == Program.MenuCommand, "Settings menu stays available separately");
                 TestIcons(directory);
                 TestDateOnlyHost(directory);
                 foreach (string file in Directory.GetFiles(directory, "calendar-*.png")) File.Delete(file);
