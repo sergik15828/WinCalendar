@@ -14,6 +14,15 @@ namespace WinCalendar
     {
         internal static async Task RunAsync(string directory, Action<bool, string> check)
         {
+            byte[] wave = ReminderChime.CreateWave();
+            using (ReminderChime loaded = new ReminderChime())
+            {
+                check(wave.Length == 97064 && BitConverter.ToInt32(wave, 24) == 44100
+                    && BitConverter.ToInt16(wave, 34) == 16 && BitConverter.ToInt16(wave, 44) == 0
+                    && BitConverter.ToInt16(wave, wave.Length - 2) == 0,
+                    "Custom chime loads as PCM audio with a silent start and end to avoid clicks");
+            }
+            File.WriteAllBytes(Path.Combine(directory, "reminder-chime.wav"), wave);
             check(TaskbarAnchor.IsOwnButtonName("Приложение WinCalendar закреплено")
                 && TaskbarAnchor.IsOwnButtonName("Thursday, 12 November — WinCalendar")
                 && TaskbarAnchor.IsOwnButtonName("WinDate - pinned")

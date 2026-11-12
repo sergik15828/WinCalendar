@@ -36,7 +36,7 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Background startup must never open the calendar panel or browser.
 - Date and month grid work offline without an account. Google data requires a network connection for refresh; retained snapshots remain available offline. No event editing or invitations.
 - Card hover, tooltip and pointer activation share the visible rounded bounds; gaps are inactive. Delayed tooltips preserve flyout focus. A separate header close button hides the flyout without exiting the background updater.
-- The Windows Asterisk system sound plays once at pulse activation, including preview; animation frames do not repeat it.
+- An original soft two-note chime, synthesized locally as 1.1-second PCM audio, plays once at pulse activation, including preview; animation frames do not repeat it.
 - Full exit stops date updates; startup is an explicit user choice.
 
 ## Brand commitments

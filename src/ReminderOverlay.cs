@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using System.Media;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -16,6 +15,7 @@ namespace WinCalendar
     {
         private readonly System.Windows.Forms.Timer animation;
         private readonly Action playSound;
+        private readonly ReminderChime chime;
         private readonly Stopwatch clock = new Stopwatch();
         private DateTime anchorChecked;
         private Rectangle locatedPin;
@@ -23,11 +23,12 @@ namespace WinCalendar
         internal bool Active { get { return active; } }
         protected override bool ShowWithoutActivation { get { return true; } }
 
-        internal ReminderOverlay() : this(delegate { SystemSounds.Asterisk.Play(); }) { }
+        internal ReminderOverlay() : this(null) { }
 
         internal ReminderOverlay(Action notificationSound)
         {
-            playSound = notificationSound;
+            if (notificationSound == null) { chime = new ReminderChime(); playSound = chime.Play; }
+            else playSound = notificationSound;
             AutoScaleMode = AutoScaleMode.None; FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false; TopMost = true; StartPosition = FormStartPosition.Manual;
             animation = new System.Windows.Forms.Timer { Interval = 33 };
@@ -144,7 +145,11 @@ namespace WinCalendar
             if (message.Msg == 0x21) { message.Result = new IntPtr(3); return; }
             base.WndProc(ref message);
         }
-        protected override void Dispose(bool disposing) { if (disposing) animation.Dispose(); base.Dispose(disposing); }
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { animation.Dispose(); if (chime != null) chime.Dispose(); }
+            base.Dispose(disposing);
+        }
 
         [StructLayout(LayoutKind.Sequential)] private struct NativePoint { internal int X, Y; }
         [StructLayout(LayoutKind.Sequential)] private struct NativeSize { internal int Width, Height; }
