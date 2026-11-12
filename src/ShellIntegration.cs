@@ -109,7 +109,7 @@ namespace WinCalendar
                 link.SetPath(Executable);
                 link.SetArguments(arguments);
                 link.SetWorkingDirectory(Path.GetDirectoryName(Executable));
-                link.SetDescription("Текущая дата в панели задач");
+                link.SetDescription(UiText.Get("Текущая дата в панели задач"));
                 link.SetIconLocation(iconPath, 0);
                 ((IPersistFile)link).Save(shortcutPath, true);
             }

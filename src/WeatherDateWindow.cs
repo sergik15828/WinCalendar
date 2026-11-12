@@ -13,12 +13,16 @@ namespace WinCalendar
         private readonly Timer timer;
         private readonly Func<DateTime> clock;
         private readonly Action open;
-        private readonly ToolTip tooltip;
+        private readonly Stopwatch reminderClock = new Stopwatch();
         private bool locating, hover;
         private DateTime lastLocate, paintedDate;
         private Rectangle renderedBounds;
         private bool? renderedDark;
         private bool renderedHover;
+        private double renderedPhase = -1;
+        private bool renderedReminder;
+        private string renderedLanguage;
+        private int renderedFrames;
         private DateTime settleUntil;
         private int hiddenTransitions;
         private WeatherPlacement placement;
@@ -42,8 +46,7 @@ namespace WinCalendar
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; TopMost = true;
             StartPosition = FormStartPosition.Manual; AutoScaleMode = AutoScaleMode.None;
             Cursor = Cursors.Hand;
-            AccessibleName = "Дата рядом с погодой — открыть WinCalendar"; AccessibleRole = AccessibleRole.PushButton;
-            tooltip = new ToolTip { InitialDelay = 650, ShowAlways = true, UseAnimation = false, UseFading = false };
+            AccessibleName = UiText.Get("Дата рядом с погодой — открыть WinCalendar"); AccessibleRole = AccessibleRole.PushButton;
             timer = new Timer { Interval = 500 };
             timer.Tick += delegate { RefreshPlacement(); };
             timer.Start();
@@ -52,7 +55,8 @@ namespace WinCalendar
         internal async void RefreshPlacement()
         {
             if (IsDisposed) return;
-            timer.Interval = DateTime.UtcNow < settleUntil ? 50 : 500;
+            bool attention = TaskbarAnchor.ReminderActive && TaskbarAnchor.ReminderMotion && Visible;
+            timer.Interval = attention ? 33 : DateTime.UtcNow < settleUntil ? 50 : 500;
             if (!IsEnabled) { placement = null; HideDate(); return; }
             if (!locating && DateTime.UtcNow - lastLocate > TimeSpan.FromSeconds(2))
             {
@@ -70,14 +74,23 @@ namespace WinCalendar
         internal void RenderAt(Rectangle target)
         {
             TaskbarAnchor.Prototype = new Rectangle(target.Left + (int)Math.Round(target.Height * 2 / 44.0), target.Top, target.Height, target.Height);
+            TaskbarAnchor.PrototypeHitArea = target;
             bool dark = WeatherWidgetRenderer.DarkTaskbar();
-            if (!Visible || renderedBounds != target || paintedDate != clock().Date || renderedDark != dark || renderedHover != hover)
+            bool reminder = TaskbarAnchor.ReminderActive;
+            if (reminder && !reminderClock.IsRunning) reminderClock.Restart();
+            if (!reminder) reminderClock.Reset();
+            double phase = reminder && TaskbarAnchor.ReminderMotion ? reminderClock.Elapsed.TotalMilliseconds % 2600 / 2600 : 0;
+            if (!Visible || renderedBounds != target || paintedDate != clock().Date || renderedDark != dark || renderedHover != hover || renderedLanguage != UiText.Language || renderedReminder != reminder || (reminder && phase != renderedPhase))
             {
                 paintedDate = clock().Date; renderedBounds = target; renderedDark = dark; renderedHover = hover;
-                AccessibleName = paintedDate.ToString("dddd, d MMMM yyyy", DateText.Russian) + " — открыть WinCalendar";
-                tooltip.SetToolTip(this, paintedDate.ToString("dddd, d MMMM yyyy", DateText.Russian) + " · WinCalendar");
-                using (Bitmap bitmap = WeatherWidgetRenderer.Draw(paintedDate, target.Width, target.Height, dark, hover))
-                    if (!ReminderOverlay.Present(Handle, bitmap, target.Location)) { HideDate(); return; }
+                renderedReminder = reminder; renderedPhase = phase;
+                renderedLanguage = UiText.Language;
+                SetProp(Handle, "WinCalendar.WeatherReminderActive", new IntPtr(reminder ? 1 : 0));
+                SetProp(Handle, "WinCalendar.WeatherReminderMotion", new IntPtr(TaskbarAnchor.ReminderMotion ? 1 : 0));
+                SetProp(Handle, "WinCalendar.WeatherFrames", new IntPtr(++renderedFrames));
+                AccessibleName = paintedDate.ToString("dddd, d MMMM yyyy", DateText.Culture) + UiText.Get(" — открыть WinCalendar");
+                using (Bitmap bitmap = WeatherWidgetRenderer.Draw(paintedDate, target.Width, target.Height, dark, hover, reminder, phase))
+                    if (!ReminderOverlay.Present(Handle, bitmap, new Point(target.Left, target.Top - (bitmap.Height - target.Height)))) { HideDate(); return; }
             }
             if (!Visible) Show();
             KeepAboveTaskbar();
@@ -87,6 +100,7 @@ namespace WinCalendar
         private void HideDate()
         {
             TaskbarAnchor.Prototype = Rectangle.Empty;
+            TaskbarAnchor.PrototypeHitArea = Rectangle.Empty;
             if (Visible) { hiddenTransitions++; SetProp(Handle, "WinCalendar.WeatherHideCount", new IntPtr(hiddenTransitions)); Hide(); }
         }
         protected override void OnPaintBackground(PaintEventArgs e) { }
@@ -106,7 +120,7 @@ namespace WinCalendar
         { if (m.Msg == 0x21) { m.Result = new IntPtr(3); return; } base.WndProc(ref m); }
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { timer.Dispose(); tooltip.Dispose(); HideDate(); }
+            if (disposing) { timer.Dispose(); HideDate(); }
             base.Dispose(disposing);
         }
         [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int w, int height, uint flags);

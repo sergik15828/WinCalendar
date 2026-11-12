@@ -12,6 +12,7 @@ namespace WinCalendar
     {
         private readonly Label heading;
         private readonly Label weekday;
+        private readonly PaydayBadge payday;
         private readonly Label month;
         private readonly CalendarArrow previous;
         private readonly CalendarArrow next;
@@ -35,7 +36,7 @@ namespace WinCalendar
         private DateTimeOffset? nextEnd;
         private readonly List<Control> calendarControls;
         private bool settingsVisible;
-        private CalendarViewData viewData = new CalendarViewData { Message = "Подключите Google, чтобы видеть встречи." };
+        private CalendarViewData viewData = new CalendarViewData { Message = UiText.Get("Подключите Google, чтобы видеть встречи.") };
         private DateTime renderedMonth;
         private readonly Label[] weekLabels = new Label[7];
         private readonly CalendarDayButton[] dayButtons = new CalendarDayButton[42];
@@ -87,23 +88,24 @@ namespace WinCalendar
             AutoScrollMinSize = Size;
             Font = bodyFont;
             DoubleBuffered = true;
-            AccessibleName = "Календарь";
+            AccessibleName = UiText.Get("Календарь");
             State = new CalendarState(today);
             heading = LabelAt(new Rectangle(16, 10, 272, 32), headingFont);
             weekday = LabelAt(new Rectangle(16, 42, 272, 20), smallFont);
-            settingsButton = new CalendarSymbolButton { Bounds = new Rectangle(600, 16, 32, 32), AccessibleName = "Настройки", TabIndex = 0 };
-            settingsButton.Click += delegate { ShowSettings(!settingsVisible); };
+            payday = new PaydayBadge { Bounds = new Rectangle(216, 12, 112, 44) }; Controls.Add(payday);
+            settingsButton = new CalendarSymbolButton { Bounds = new Rectangle(600, 16, 32, 32), AccessibleName = UiText.Get("Настройки"), TabIndex = 0 };
+            settingsButton.Click += delegate { if (OptionsRequested != null) OptionsRequested(this, EventArgs.Empty); };
             Controls.Add(settingsButton);
-            closeButton = new CalendarSymbolButton { Bounds = new Rectangle(640, 16, 32, 32), IsClose = true, AccessibleName = "Закрыть календарь", TabIndex = 8 };
+            closeButton = new CalendarSymbolButton { Bounds = new Rectangle(640, 16, 32, 32), IsClose = true, AccessibleName = UiText.Get("Закрыть календарь"), TabIndex = 8 };
             closeButton.Click += delegate { if (DismissRequested != null) DismissRequested(this, EventArgs.Empty); };
             Controls.Add(closeButton);
             month = LabelAt(new Rectangle(16, 68, 166, 28), monthFont);
-            previous = new CalendarArrow(false) { Bounds = new Rectangle(260, 68, 32, 28), AccessibleName = "Предыдущий месяц", TabIndex = 2 };
-            next = new CalendarArrow(true) { Bounds = new Rectangle(296, 68, 32, 28), AccessibleName = "Следующий месяц", TabIndex = 3 };
+            previous = new CalendarArrow(false) { Bounds = new Rectangle(260, 68, 32, 28), AccessibleName = UiText.Get("Предыдущий месяц"), TabIndex = 2 };
+            next = new CalendarArrow(true) { Bounds = new Rectangle(296, 68, 32, 28), AccessibleName = UiText.Get("Следующий месяц"), TabIndex = 3 };
             previous.Click += delegate { MoveMonth(-1, false); };
             next.Click += delegate { MoveMonth(1, false); };
             Controls.Add(previous); Controls.Add(next);
-            string[] names = { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" };
+            string[] names = { UiText.Get("Пн"), UiText.Get("Вт"), UiText.Get("Ср"), UiText.Get("Чт"), UiText.Get("Пт"), UiText.Get("Сб"), UiText.Get("Вс") };
             for (int column = 0; column < 7; column++)
             {
                 int left = 16 + column * 312 / 7;
@@ -124,25 +126,25 @@ namespace WinCalendar
                 }
             }
             agendaHeading = LabelAt(new Rectangle(360, 16, 184, 28), monthFont);
-            agendaHeading.Text = "Встречи";
+            agendaHeading.Text = UiText.Get("Встречи");
             calendarLink = new CalendarSymbolButton { Bounds = new Rectangle(560, 16, 32, 32), IsCalendar = true, TabIndex = 9 }; Controls.Add(calendarLink);
-            calendarLink.AccessibleName = "Открыть Google Calendar в браузере";
+            calendarLink.AccessibleName = UiText.Get("Открыть Google Calendar в браузере");
             calendarLink.Click += delegate { if (GoogleRequested != null) GoogleRequested(this, EventArgs.Empty); };
             selectedDate = LabelAt(new Rectangle(360, 48, 216, 24), smallFont);
-            weekButton = FooterButton("Неделя", new Rectangle(580, 46, 92, 28), 6); weekButton.Font = smallFont;
-            weekButton.Click += delegate { weekly = !weekly; weekButton.Text = weekly ? "День" : "Неделя"; RenderEvents(); if (RangeChanged != null) RangeChanged(this, EventArgs.Empty); };
+            weekButton = FooterButton(UiText.Get("Неделя"), new Rectangle(580, 46, 92, 28), 6); weekButton.Font = smallFont;
+            weekButton.Click += delegate { weekly = !weekly; weekButton.Text = weekly ? UiText.Get("День") : UiText.Get("Неделя"); RenderEvents(); if (RangeChanged != null) RangeChanged(this, EventArgs.Empty); };
             eventsList = new CalendarEventList { Bounds = new Rectangle(360, 86, 312, 278), Font = bodyFont, TabIndex = 5 };
             eventsList.OpenRequested += delegate(string url) { if (EventRequested != null) EventRequested(url); };
             eventsList.MeetRequested += delegate(string url) { if (MeetRequested != null) MeetRequested(url); };
             Controls.Add(eventsList);
             emptyEvents = LabelAt(eventsList.Bounds, bodyFont);
-            todayButton = FooterButton("Сегодня", new Rectangle(184, 68, 72, 28), 1);
+            todayButton = FooterButton(UiText.Get("Сегодня"), new Rectangle(184, 68, 72, 28), 1);
             todayButton.Font = smallFont;
-            todayButton.AccessibleName = "Перейти к сегодняшней дате";
+            todayButton.AccessibleName = UiText.Get("Перейти к сегодняшней дате");
             todayButton.Click += delegate { State.GoToToday(); RenderState(false); };
-            nextMeeting = LabelAt(new Rectangle(24, 328, 296, 18), smallFont); nextMeeting.AutoEllipsis = true; nextMeeting.Text = "Ближайшая встреча появится после загрузки";
-            snooze5 = FooterButton("Отложить на 5 мин", new Rectangle(16, 348, 144, 26), 7); snooze5.Font = smallFont;
-            snooze10 = FooterButton("Отложить на 10 мин", new Rectangle(184, 348, 144, 26), 8); snooze10.Font = smallFont;
+            nextMeeting = LabelAt(new Rectangle(24, 328, 296, 18), smallFont); nextMeeting.AutoEllipsis = true; nextMeeting.Text = UiText.Get("Ближайшая встреча появится после загрузки");
+            snooze5 = FooterButton(UiText.Get("Отложить на 5 мин"), new Rectangle(16, 348, 144, 26), 7); snooze5.Font = smallFont;
+            snooze10 = FooterButton(UiText.Get("Отложить на 10 мин"), new Rectangle(184, 348, 144, 26), 8); snooze10.Font = smallFont;
             snooze5.Click += delegate { if (SnoozeRequested != null) SnoozeRequested(5); };
             snooze10.Click += delegate { if (SnoozeRequested != null) SnoozeRequested(10); };
             snooze5.Visible = snooze10.Visible = false;
@@ -152,13 +154,13 @@ namespace WinCalendar
             syncStatus = SettingsLabel(new Rectangle(0, 0, 312, 38), bodyFont);
             syncStatus.AutoEllipsis = true;
             updatedStatus = SettingsLabel(new Rectangle(0, 40, 312, 20), smallFont);
-            connectButton = SettingsAction("Войти в Google", 76, 0);
-            refreshButton = SettingsAction("Обновить встречи", 114, 1);
-            googleButton = SettingsAction("Открыть Google Calendar", 152, 2);
-            previewButton = SettingsAction("Проверить напоминание", 190, 3);
-            configureButton = SettingsAction("Настроить подключение", 0, 4);
+            connectButton = SettingsAction(UiText.Get("Войти в Google"), 76, 0);
+            refreshButton = SettingsAction(UiText.Get("Обновить встречи"), 114, 1);
+            googleButton = SettingsAction(UiText.Get("Открыть Google Calendar"), 152, 2);
+            previewButton = SettingsAction(UiText.Get("Проверить напоминание"), 190, 3);
+            configureButton = SettingsAction(UiText.Get("Настроить подключение"), 0, 4);
             configureButton.Left = 344;
-            disconnectButton = SettingsAction("Отключить Google", 38, 5);
+            disconnectButton = SettingsAction(UiText.Get("Отключить Google"), 38, 5);
             disconnectButton.Left = 344;
             connectButton.Click += delegate { if (ConnectRequested != null) ConnectRequested(this, EventArgs.Empty); };
             refreshButton.Click += delegate { if (RefreshRequested != null) RefreshRequested(this, EventArgs.Empty); };
@@ -166,14 +168,14 @@ namespace WinCalendar
             googleButton.Click += delegate { if (GoogleRequested != null) GoogleRequested(this, EventArgs.Empty); };
             configureButton.Click += delegate { if (ConfigureRequested != null) ConfigureRequested(this, EventArgs.Empty); };
             previewButton.Click += delegate { if (PreviewRequested != null) PreviewRequested(this, EventArgs.Empty); };
-            optionsButton = SettingsAction("Календари, звук и вид", 78, 6); optionsButton.Left = 344;
+            optionsButton = SettingsAction(UiText.Get("Параметры"), 78, 6); optionsButton.Left = 344;
             optionsButton.Click += delegate { if (OptionsRequested != null) OptionsRequested(this, EventArgs.Empty); };
             reminderInfo = SettingsLabel(new Rectangle(344, 120, 312, 42), smallFont);
-            reminderInfo.Text = "Напоминания — как в событии Google.\nПульсация остаётся до нажатия на дату.";
-            startupCheck = new CheckBox { Bounds = new Rectangle(344, 168, 312, 26), Font = smallFont, Text = "Запускать с Windows", TabIndex = 6 };
+            reminderInfo.Text = UiText.Get("Напоминания — как в событии Google.\nПульсация остаётся до нажатия на дату.");
+            startupCheck = new CheckBox { Bounds = new Rectangle(344, 168, 312, 26), Font = smallFont, Text = UiText.Get("Запускать с Windows"), TabIndex = 6, Visible = false };
             startupCheck.Click += delegate { if (StartupRequested != null) StartupRequested(startupCheck.Checked); };
             settingsPage.Controls.Add(startupCheck);
-            exitButton = SettingsAction("Выйти", 218, 7);
+            exitButton = SettingsAction(UiText.Get("Выйти"), 218, 7);
             exitButton.Left = 344;
             exitButton.Height = 32;
             exitButton.Click += delegate { if (ExitRequested != null) ExitRequested(this, EventArgs.Empty); };
@@ -245,7 +247,7 @@ namespace WinCalendar
             foreach (Control control in calendarControls) control.Visible = !show;
             settingsPage.Visible = show;
             settingsButton.IsClose = false;
-            settingsButton.AccessibleName = show ? "Вернуться к календарю" : "Настройки";
+            settingsButton.AccessibleName = show ? UiText.Get("Вернуться к календарю") : UiText.Get("Настройки");
             RenderState(false);
             if (show && SettingsOpened != null) SettingsOpened(this, EventArgs.Empty);
         }
@@ -265,7 +267,7 @@ namespace WinCalendar
         {
             CalendarEvent nextEvent = MeetingTools.Next(upcomingEvents.Where(preferences.Includes), DateTimeOffset.Now);
             string text = MeetingTools.NextLabel(nextEvent, DateTimeOffset.Now, preferences.PrivateMode);
-            if (preferences.Calendars.Count > 0 && preferences.Calendars.All(c => preferences.DisabledCalendars.Contains(c.Id))) text = "Календари скрыты";
+            if (preferences.Calendars.Count > 0 && preferences.Calendars.All(c => preferences.DisabledCalendars.Contains(c.Id))) text = UiText.Get("Календари скрыты");
             if (nextMeeting.Text != text) { nextMeeting.Text = text; nextMeeting.AccessibleName = text; }
             snooze5.Visible = snooze10.Visible = !settingsVisible && canSnooze;
         }
@@ -312,11 +314,16 @@ namespace WinCalendar
 
         private void RenderState(bool focus)
         {
+            payday.Visible = preferences.PaydayEnabled && !settingsVisible;
+            heading.Width = weekday.Width = Pixels(payday.Visible ? 194 : 272);
+            payday.UpdateValue(State.Today, preferences, palette ?? CalendarPalette.Create(null));
+            reminderInfo.Text = preferences.ReminderTiming == 0 ? UiText.Get("Напоминания — как в событии Google.\nИконка подпрыгивает до нажатия на дату.")
+                : UiText.Get("Локальное напоминание за ") + (preferences.ReminderTiming == 1 ? 5 : 2) + UiText.Get(" мин до встречи.\nИконка подпрыгивает до нажатия на дату.");
             DateTimeOffset now = eventsList.Clock();
             nextEnd = viewData.Events.Where(e => preferences.Includes(e) && e.ReminderEnd > now).Select(e => (DateTimeOffset?)e.ReminderEnd).Min();
-            heading.Text = settingsVisible ? "Настройки" : State.Today.ToString("d MMMM", DateText.Russian);
-            weekday.Text = settingsVisible ? "WinCalendar · " + typeof(CalendarPanel).Assembly.GetName().Version.ToString(3) : DateText.Russian.TextInfo.ToTitleCase(State.Today.ToString("dddd", DateText.Russian));
-            month.Text = DateText.Russian.TextInfo.ToTitleCase(State.Month.ToString("MMMM yyyy", DateText.Russian));
+            heading.Text = settingsVisible ? UiText.Get("Подключение") : State.Today.ToString("d MMMM", DateText.Culture);
+            weekday.Text = settingsVisible ? "WinCalendar · " + typeof(CalendarPanel).Assembly.GetName().Version.ToString(3) : DateText.Culture.TextInfo.ToTitleCase(State.Today.ToString("dddd", DateText.Culture));
+            month.Text = DateText.Culture.TextInfo.ToTitleCase(State.Month.ToString("MMMM yyyy", DateText.Culture));
             previous.Enabled = State.Month > CalendarState.Minimum;
             next.Enabled = State.Month < new DateTime(9998, 12, 1);
             DateTime[] days = State.Days();
@@ -325,7 +332,7 @@ namespace WinCalendar
                 CalendarDayButton button = dayButtons[i];
                 DateTime date = days[i];
                 button.Tag = date;
-                button.Text = date.Day.ToString(DateText.Russian);
+                button.Text = date.Day.ToString(DateText.Culture);
                 button.Today = date == State.Today;
                 button.Selected = date == State.Selected;
                 button.InMonth = date.Month == State.Month.Month && date.Year == State.Month.Year;
@@ -334,12 +341,13 @@ namespace WinCalendar
                 button.HasEvents = viewData.Events.Any(e => preferences.Includes(e) && e.ReminderEnd > now && e.OccursOn(date, TimeZoneInfo.Local));
                 button.TabStop = button.Selected;
                 button.Enabled = date >= CalendarState.Minimum && date <= CalendarState.Maximum;
-                button.AccessibleName = date.ToString("dddd, d MMMM yyyy", DateText.Russian)
-                    + (button.Today ? ", сегодня" : "") + (button.Selected ? ", выбрано" : "") + (button.HasEvents ? ", есть встречи" : "");
+                button.AccessibleName = date.ToString("dddd, d MMMM yyyy", DateText.Culture)
+                    + (button.Today ? UiText.Get(", сегодня") : "") + (button.Selected ? UiText.Get(", выбрано") : "") + (button.HasEvents ? UiText.Get(", есть встречи") : "");
                 button.Invalidate();
                 if (focus && button.Selected) button.Focus();
             }
             RenderEvents();
+            UiText.Apply(this);
             previous.Invalidate(); next.Invalidate(); Invalidate();
             if (renderedMonth != State.Month)
             {
@@ -353,27 +361,27 @@ namespace WinCalendar
         private void RenderEvents()
         {
             CalendarEvent[] day = viewData.Events.Where(e => preferences.Includes(e) && e.ReminderEnd > eventsList.Clock() && (weekly ? Enumerable.Range(0, 7).Any(i => e.OccursOn(State.Selected.AddDays(i), TimeZoneInfo.Local)) : e.OccursOn(State.Selected, TimeZoneInfo.Local))).OrderBy(e => e.SortOrder).ToArray();
-            selectedDate.Text = (weekly ? State.Selected.ToString("d MMM", DateText.Russian) + " — " + State.Selected.AddDays(6).ToString("d MMM", DateText.Russian) : State.Selected.ToString("d MMMM yyyy", DateText.Russian)) + (day.Length == 0 ? "" : " · " + day.Length);
+            selectedDate.Text = (weekly ? State.Selected.ToString("d MMM", DateText.Culture) + " — " + State.Selected.AddDays(6).ToString("d MMM", DateText.Culture) : State.Selected.ToString("d MMMM yyyy", DateText.Culture)) + (day.Length == 0 ? "" : " · " + day.Length);
             eventsList.Weekly = weekly;
             eventsList.SetEvents(day, State.Selected, TimeZoneInfo.Local, palette, layoutDpi);
             eventsList.Visible = !settingsVisible && day.Length > 0; emptyEvents.Visible = !settingsVisible && day.Length == 0;
-            emptyEvents.Text = viewData.Connection == CalendarConnection.Disconnected ? "Подключите календари Google,\nчтобы видеть встречи выбранного дня."
-                : viewData.Connection == CalendarConnection.NeedsLogin ? "Войдите в Google, чтобы проверить встречи\nво всех доступных календарях."
-                : viewData.Loading ? "Проверяем встречи…"
-                : viewData.LoadError ? "Не удалось проверить встречи.\n" + (viewData.HasSnapshot ? "Показаны последние сохранённые данные." : "Список встреч пока недоступен.")
-                : viewData.HasSnapshot ? "На этот день встреч нет." : "Список встреч пока недоступен.";
-            if (day.Length == 0 && weekly && viewData.HasSnapshot && !viewData.LoadError && !viewData.Loading && viewData.Connection == CalendarConnection.Connected) emptyEvents.Text = "На эту неделю встреч нет.";
+            emptyEvents.Text = viewData.Connection == CalendarConnection.Disconnected ? UiText.Get("Подключите календари Google,\nчтобы видеть встречи выбранного дня.")
+                : viewData.Connection == CalendarConnection.NeedsLogin ? UiText.Get("Войдите в Google, чтобы проверить встречи\nво всех доступных календарях.")
+                : viewData.Loading ? UiText.Get("Проверяем встречи…")
+                : viewData.LoadError ? UiText.Get("Не удалось проверить встречи.\n") + (viewData.HasSnapshot ? UiText.Get("Показаны последние сохранённые данные.") : UiText.Get("Список встреч пока недоступен."))
+                : viewData.HasSnapshot ? UiText.Get("На этот день встреч нет.") : UiText.Get("Список встреч пока недоступен.");
+            if (day.Length == 0 && weekly && viewData.HasSnapshot && !viewData.LoadError && !viewData.Loading && viewData.Connection == CalendarConnection.Connected) emptyEvents.Text = UiText.Get("На эту неделю встреч нет.");
             if (day.Length == 0 && !weekly && State.Selected == State.Today && viewData.HasSnapshot && !viewData.LoadError && !viewData.Loading && viewData.Connection == CalendarConnection.Connected)
-                emptyEvents.Text = "На сегодня митов больше нет, приятного вечера";
+                emptyEvents.Text = UiText.Get("На сегодня митов больше нет, приятного вечера");
             if (day.Length == 0 && !viewData.LoadError && !viewData.Loading && viewData.Connection == CalendarConnection.Connected && preferences.Calendars.Count > 0
-                && preferences.Calendars.All(c => preferences.DisabledCalendars.Contains(c.Id))) emptyEvents.Text = "Календари скрыты.\nВыберите их в настройках.";
+                && preferences.Calendars.All(c => preferences.DisabledCalendars.Contains(c.Id))) emptyEvents.Text = UiText.Get("Календари скрыты.\nВыберите их в настройках.");
             snooze5.Visible = snooze10.Visible = !settingsVisible && canSnooze;
             syncStatus.Text = viewData.Message;
-            updatedStatus.Text = viewData.UpdatedUtc.HasValue ? "Данные: " + viewData.UpdatedUtc.Value.ToLocalTime().ToString("d MMM HH:mm", DateText.Russian) : "";
+            updatedStatus.Text = viewData.UpdatedUtc.HasValue ? UiText.Get("Данные: ") + viewData.UpdatedUtc.Value.ToLocalTime().ToString("d MMM HH:mm", DateText.Culture) : "";
             bool connected = viewData.Connection == CalendarConnection.Connected, busy = viewData.Connection == CalendarConnection.Busy;
             settingsButton.HasAttention = viewData.LoadError || viewData.Connection == CalendarConnection.NeedsLogin;
             settingsButton.Invalidate();
-            connectButton.Text = busy ? "Отмена входа" : connected ? "Сменить аккаунт" : "Войти в Google";
+            connectButton.Text = busy ? UiText.Get("Отмена входа") : connected ? UiText.Get("Сменить аккаунт") : UiText.Get("Войти в Google");
             connectButton.ForeColor = connected ? palette.Ink : palette.Accent;
             refreshButton.Enabled = connected && !viewData.Loading;
             disconnectButton.Enabled = connected || viewData.Connection == CalendarConnection.NeedsLogin;

@@ -167,10 +167,11 @@ namespace WinCalendar
                     popup.Panel.SetDpi(dpi); popup.ViewWindow.ClientSize = popup.Panel.NaturalSize; popup.Panel.ApplyTheme(dark); Application.DoEvents();
                     Save(popup.Panel, directory, "features-agenda-" + (dark ? "dark" : "light") + "-" + dpi + ".png");
                     popup.OpenPreferences(); popup.PreferencesPage.BeginEdit(options); popup.PreferencesPage.SetDpi(dpi, dark);
+                    popup.ViewWindow.ClientSize = popup.PreferencesPage.NaturalSize;
                     for (int page = 0; page < 3; page++)
                     {
                         popup.PreferencesPage.ShowPage(page); popup.PreferencesPage.SetDpi(dpi, dark);
-                        check(CalendarPanel.Descendants(popup.PreferencesPage).All(c => c.Parent.ClientRectangle.Contains(c.Bounds)),
+                        check(popup.PreferencesPage.LayoutFits,
                             "Preferences page " + page + " controls fit at " + dpi + " DPI, dark=" + dark);
                         Save(popup.PreferencesPage, directory, "features-settings-" + page + "-" + (dark ? "dark" : "light") + "-" + dpi + ".png");
                     }
@@ -187,11 +188,15 @@ namespace WinCalendar
                 popup.PreferencesPage.Controls.OfType<Button>().Single(button => button.Text == "Сохранить").PerformClick();
                 check(popup.PreferencesPage.Draft.PrivateMode && popup.PreferencesPage.Draft.SoundStyle == 2 && popup.PreferencesPage.Draft.Volume == 45
                     && !popup.Panel.EventList.Items[0].ToString().Contains(events[0].Title), "Preferences Save applies edited controls and masks existing meeting metadata immediately");
-                check(popup.Visible && popup.Panel.SettingsVisible, "Saving preferences returns to settings in the existing flyout");
+                check(popup.Visible && !popup.Panel.SettingsVisible && !popup.PreferencesVisible, "Saving preferences returns to the calendar in the existing flyout");
             }
         }
         private static void Save(Control control, string directory, string name)
-        { using (Bitmap image = new Bitmap(control.Width, control.Height)) { control.DrawToBitmap(image, control.ClientRectangle); image.Save(Path.Combine(directory, name), ImageFormat.Png); } }
+        {
+            PreferencesEditor preferences = control as PreferencesEditor;
+            using (Bitmap image = preferences == null ? new Bitmap(control.Width, control.Height) : preferences.CaptureFrame())
+            { if (preferences == null) control.DrawToBitmap(image, control.ClientRectangle); image.Save(Path.Combine(directory, name), ImageFormat.Png); }
+        }
         private sealed class RangeSource : ICalendarSource
         {
             internal int Calls;

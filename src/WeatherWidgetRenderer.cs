@@ -11,6 +11,7 @@ namespace WinCalendar
     internal static class WeatherWidgetRenderer
     {
         internal const int Width = 160, Height = 44;
+        internal const int ReminderHeadroom = 28;
         internal static bool DarkTaskbar()
         {
             try
@@ -21,31 +22,45 @@ namespace WinCalendar
             catch (UnauthorizedAccessException) { return true; }
             catch (System.Security.SecurityException) { return true; }
         }
-        internal static Bitmap Draw(DateTime date, int width, int height, bool dark, bool hover)
+        internal static Bitmap Draw(DateTime date, int width, int height, bool dark, bool hover, bool reminder = false, double phase = 0)
         {
-            Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppPArgb);
+            int headroom = reminder && TaskbarAnchor.ReminderMotion ? (int)Math.Round(ReminderHeadroom * height / (double)Height) : 0;
+            Bitmap bitmap = new Bitmap(width, height + headroom, PixelFormat.Format32bppPArgb);
             CalendarPalette palette = CalendarPalette.Create(dark);
             using (Graphics g = Graphics.FromImage(bitmap))
             {
                 g.Clear(Color.Transparent);
+                g.TranslateTransform(0, headroom);
                 g.ScaleTransform(width / (float)Width, height / (float)Height);
                 g.SmoothingMode = SmoothingMode.AntiAlias; g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
                 // Alpha 1 keeps the whole button clickable without a visible panel.
                 using (GraphicsPath shape = Rounded(1, 1, Width - 2, Height - 2, 6))
                 using (Brush fill = new SolidBrush(SystemInformation.HighContrast ? SystemColors.Window : Color.FromArgb(hover ? 22 : 1, palette.Ink)))
                     g.FillPath(fill, shape);
-                DrawCalendar(g, palette);
+                if (reminder && TaskbarAnchor.ReminderMotion)
+                {
+                    int amplitude = TaskbarAnchor.ReminderStrength == 0 ? 16 : TaskbarAnchor.ReminderStrength == 2 ? 30 : 24;
+                    double hop = phase < 0.28 ? Arc(phase / 0.28) : phase < 0.47 ? 0.42 * Arc((phase - 0.28) / 0.19)
+                        : phase < 0.59 ? 0.14 * Arc((phase - 0.47) / 0.12) : 0;
+                    float lift = (float)(amplitude * hop);
+                    GraphicsState iconState = g.Save(); g.TranslateTransform(0, -lift); DrawCalendar(g, palette); g.Restore(iconState);
+                }
+                else DrawCalendar(g, palette);
+                if (reminder && !TaskbarAnchor.ReminderMotion)
+                    using (Pen attention = new Pen(palette.Accent, 2)) g.DrawRectangle(attention, 10, 5, 29, 33);
                 using (Brush ink = new SolidBrush(palette.Ink))
                 {
-                    using (Font font = new Font("Segoe UI Semibold", 14, FontStyle.Regular, GraphicsUnit.Pixel))
-                    using (StringFormat format = Format()) g.DrawString(date.ToString("d MMMM", DateText.Russian), font, ink, new RectangleF(46, 6, Width - 54, 20), format);
+                    using (Font font = DateFont())
+                    using (StringFormat format = Format()) g.DrawString(date.ToString("d MMMM", DateText.Culture), font, ink, new RectangleF(46, 6, Width - 54, 20), format);
                 }
                 using (Brush secondary = new SolidBrush(palette.Secondary))
                 using (Font font = new Font("Segoe UI", 12, FontStyle.Regular, GraphicsUnit.Pixel))
-                using (StringFormat format = Format()) g.DrawString(date.ToString("dddd", DateText.Russian), font, secondary, new RectangleF(46, 22, Width - 54, 16), format);
+                using (StringFormat format = Format()) g.DrawString(date.ToString("dddd", DateText.Culture), font, secondary, new RectangleF(46, 22, Width - 54, 16), format);
             }
             return bitmap;
         }
+        internal static Font DateFont() { return new Font("Segoe UI Semibold", 14, FontStyle.Regular, GraphicsUnit.Pixel); }
+        private static double Arc(double time) { return 4 * time * (1 - time); }
         private static void DrawCalendar(Graphics g, CalendarPalette palette)
         {
             bool contrast = SystemInformation.HighContrast;

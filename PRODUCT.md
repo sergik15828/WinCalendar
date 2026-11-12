@@ -51,11 +51,19 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Header Google Calendar navigation uses an authored calendar icon beside the settings gear and close icon. It opens the site and dismisses the flyout without exiting the updater. The next-meeting line starts 12 logical pixels below the month grid with an additional left inset.
 - Agenda scrolling accumulates precision-wheel deltas, batches native redraw and works under the pointer without moving keyboard focus. Preserve card hit boundaries, tooltip stability and scroll position during unchanged refreshes.
 
-## Branch-only weather date mode — 0.7.0
+## Branch-only weather date mode — 0.7.1
 
 The codex/weather-date-prototype branch adds an opt-in 160 × 44 logical-pixel date button beside weather on the primary horizontal Windows taskbar. Stable main remains 0.6.4; the original pinned weekday/day icon is retained as a backup. Render a full-color authored calendar with warm-white paper, red header, silver bindings and a 2 × 3 grid with one red cell, plus two lines of Russian date/weekday text in the existing Segoe UI and theme palette. Use a non-activating layered tool window with a transparent clickable rounded interior and restrained hover fill.
 
 Exact shell AutomationIds locate weather without reading application titles or accessible names; hide when weather/space/taskbar exposure is unavailable. Do not change Explorer, system widgets or taskbar settings. Click acknowledges reminders and toggles the existing calendar; Google reads, OAuth, sound and snooze remain shared. A nonsecret local flag persists --weather-on/off; installed Enable/DisableWeatherPrototype.cmd commands enable and roll back this mode. Clean installs default off. Prototype evidence and unverified platform cases are recorded separately in WEATHER_PROTOTYPE.md and DESIGN.md.
+
+Version 0.7.1 uses one unified preferences page without tabs, naturally 760 × 680 logical pixels in the same HWND. Fixed header/version and Back/Save footer surround a scroll body with General, Reminders, Sound, Quiet hours, Payday, Calendars, Pinned icon and Google Calendar sections. Save applies RU/EN, startup and widget mode; preserve OAuth values and source event/calendar names. The separate widget flag remains authoritative. Widget on suppresses the host taskbar button even unpinned; widget off/unpinned retains the bootstrap button. Windows manages the pinned icon manually; the shortcut action only selects it in Explorer.
+
+Provide event/5-minute/2-minute reminder timing locally. Fixed timing covers timed events even without Google popup rules; all-day timing stays with Google. Timing changes preserve pending/snoozed state, avoid retroactive cached-deadline replay and never write Google events. Existing snooze/audio/quiet rules remain.
+
+Use one compact full-widget hover tooltip: 40ms observation, 650ms dwell, next meeting or localized date fallback, max300px/two lines, fixed above text x+46 with6px gap. No pointer drift, animation or class shadow. Widget reminders use fully opaque macOS Dock-inspired three-hop ballistic motion and a pause in2.6s; strength16/24/30px, second42%,third14%. Add28px transparent headroom only during active motion, keeping text and base hit area fixed. Reduced motion is static; pinned fallback is an outline without a dot.
+
+Payday badge is enabled by default: two monthly dates15 and1, editable1–31 or one payment per month. Calculate local calendar days to next non-past payment, include today, clamp short months and do not shift weekends. The optional112×44 badge at216,12 uses an authored money bag and localized countdown beside today's date; this is a local user schedule, not financial account data.
 
 ## Brand commitments
 

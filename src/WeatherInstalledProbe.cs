@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 
 namespace WinCalendar
@@ -29,21 +30,29 @@ namespace WinCalendar
                 if (flyout != IntPtr.Zero && IsWindowVisible(flyout)) { Click(date); Thread.Sleep(250); }
                 SendMessage(host, Program.CommandMessage, new IntPtr(Program.PreviewReminderCommand), IntPtr.Zero);
                 Thread.Sleep(700);
-                IntPtr pulse = Find("WinCalendar.ReminderAccent", pid);
-                Need(pulse != IntPtr.Zero && IsWindowVisible(pulse), "Reminder preview is visible");
-                Rectangle accent = Bounds(pulse);
-                Need(Math.Abs(accent.Left + accent.Width / 2 - bounds.Left - bounds.Height * 24 / 44) <= 2 && Math.Abs(accent.Top + accent.Height / 2 - bounds.Top - bounds.Height / 2) <= 2,
-                    "Reminder pulse is centered on the widget calendar symbol");
+                Need(GetProp(date, "WinCalendar.WeatherReminderActive").ToInt64() == 1, "Widget reminder is active");
+                long frames = GetProp(date, "WinCalendar.WeatherFrames").ToInt64(); Thread.Sleep(250);
+                bool animated = GetProp(date, "WinCalendar.WeatherFrames").ToInt64() > frames;
+                Need(animated || GetProp(date, "WinCalendar.WeatherReminderMotion").ToInt64() == 0, "Widget reminder frames advance unless reduced motion is enabled");
                 long hideCount = GetProp(date, "WinCalendar.WeatherHideCount").ToInt64();
                 Click(date); Thread.Sleep(400);
                 WaitVisible(date, hideCount);
                 flyout = Find("WinCalendar.Flyout", pid);
                 Need(flyout != IntPtr.Zero && IsWindowVisible(flyout), "Click opens the existing calendar");
-                Need(!IsWindowVisible(pulse), "Click acknowledges and hides reminder pulse");
+                Rectangle calendarBounds = Bounds(flyout);
+                Need(GetProp(date, "WinCalendar.WeatherReminderActive").ToInt64() == 0, "Click acknowledges and stops icon blinking");
                 Click(date); Thread.Sleep(250);
                 WaitVisible(date, hideCount);
                 Need(!IsWindowVisible(flyout), "Second click closes the same calendar");
-                File.WriteAllText(file, "PASS installed weather date, native click, shared calendar, reminder anchor and acknowledgement\r\nDate=" + bounds + "\r\nReminder=" + accent + "\r\nStableAfterOpenAndClose=True\r\nFinalCalendarVisible=False");
+                SendMessage(host, Program.CommandMessage, new IntPtr(Program.PreferencesCommand), IntPtr.Zero); Thread.Sleep(500);
+                Need(Find("WinCalendar.Flyout", pid) == flyout && IsWindowVisible(flyout) && Bounds(flyout).Height > calendarBounds.Height,
+                    "Unified preferences enlarge the same flyout window");
+                IntPtr back = BackButton(flyout); Need(back != IntPtr.Zero, "Preferences have a visible fixed Back action");
+                SendMessage(back, 0xf5, IntPtr.Zero, IntPtr.Zero); Thread.Sleep(250);
+                Need(Bounds(flyout).Size == calendarBounds.Size && IsWindowVisible(flyout), "Back restores the original calendar size");
+                Click(date); Thread.Sleep(200);
+                Need(!IsWindowVisible(flyout), "Final calendar is hidden");
+                File.WriteAllText(file, "PASS installed weather date, native click, shared calendar, animated icon and acknowledgement\r\nDate=" + bounds + "\r\nIconAnimationAdvanced=" + animated + "\r\nStoppedAfterClick=True\r\nStableAfterOpenAndClose=True\r\nUnifiedPreferencesSameWindow=True\r\nFinalCalendarVisible=False");
                 return 0;
             }
             catch (Exception error)
@@ -76,8 +85,24 @@ namespace WinCalendar
             }, IntPtr.Zero); return found;
         }
         private delegate bool Callback(IntPtr h, IntPtr parameter);
+        private static IntPtr BackButton(IntPtr parent)
+        {
+            IntPtr result = IntPtr.Zero;
+            EnumChildWindows(parent, delegate(IntPtr h, IntPtr unused)
+            {
+                if (!IsWindowVisible(h)) return true;
+                StringBuilder kind = new StringBuilder(128); GetClassName(h, kind, kind.Capacity);
+                if (!kind.ToString().ToUpperInvariant().Contains("BUTTON")) return true;
+                StringBuilder text = new StringBuilder(64); GetWindowText(h, text, text.Capacity);
+                if (text.ToString() == "Back" || text.ToString() == "\u041d\u0430\u0437\u0430\u0434") { result = h; return false; }
+                return true;
+            }, IntPtr.Zero); return result;
+        }
         [StructLayout(LayoutKind.Sequential)] private struct NativeRect { internal int Left, Top, Right, Bottom; }
         [DllImport("user32.dll")] private static extern bool EnumWindows(Callback callback, IntPtr parameter);
+        [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr h, Callback callback, IntPtr parameter);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr h, StringBuilder text, int count);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr h, StringBuilder text, int count);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr GetProp(IntPtr h, string name);
         [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr h);
         [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr h, out NativeRect r);

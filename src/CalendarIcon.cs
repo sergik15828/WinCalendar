@@ -30,7 +30,7 @@ namespace WinCalendar
                     g.SetClip(body);
                     g.FillRectangle(red, 0, 0, 64, 27);
                     DrawFittedText(g, DateText.WeekdayAbbreviation(date), Brushes.White, new RectangleF(5, 3, 54, 20));
-                    DrawFittedText(g, date.Day.ToString(DateText.Russian), ink, new RectangleF(4, 30, 56, 30));
+                    DrawFittedText(g, date.Day.ToString(DateText.Culture), ink, new RectangleF(4, 30, 56, 30));
                     g.ResetClip();
                     g.DrawPath(border, body);
                 }

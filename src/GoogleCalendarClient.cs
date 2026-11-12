@@ -65,7 +65,7 @@ namespace WinCalendar
         {
             id = id.Trim();
             if (id.Length > 512 || !id.EndsWith(".apps.googleusercontent.com", StringComparison.Ordinal) || id.Any(c => Char.IsWhiteSpace(c)))
-                throw new GoogleFailure("Нужен Client ID OAuth-клиента типа Desktop app из Google Cloud.", false);
+                throw new GoogleFailure(UiText.Get("Нужен Client ID OAuth-клиента типа Desktop app из Google Cloud."), false);
             await tokenLock.WaitAsync(cancellation).ConfigureAwait(false);
             try
             {
@@ -80,7 +80,7 @@ namespace WinCalendar
 
         internal async Task ConnectAsync(CancellationToken cancellation)
         {
-            if (!Configured) throw new GoogleFailure("Сначала настройте OAuth-клиент Google.", false);
+            if (!Configured) throw new GoogleFailure(UiText.Get("Сначала настройте OAuth-клиент Google."), false);
             await tokenLock.WaitAsync(cancellation).ConfigureAwait(false);
             try
             {
@@ -90,7 +90,7 @@ namespace WinCalendar
                 fields.Add("redirect_uri", code.RedirectUri); fields.Add("code_verifier", code.Verifier);
                 Dictionary<string, object> token = await TokenAsync(fields, cancellation).ConfigureAwait(false);
                 string refresh = Json.Text(token, "refresh_token");
-                if (String.IsNullOrEmpty(refresh)) throw new GoogleFailure("Google не выдал доступ для фоновой работы. Повторите вход и разрешите чтение календаря.", true);
+                if (String.IsNullOrEmpty(refresh)) throw new GoogleFailure(UiText.Get("Google не выдал доступ для фоновой работы. Повторите вход и разрешите чтение календаря."), true);
                 string identity = Guid.NewGuid().ToString("N");
                 credentials.Write(SessionCredential, Json.Serialize(new Dictionary<string, object> { { "refresh_token", refresh }, { "cache_id", identity } }));
                 refreshToken = refresh; cacheIdentity = identity; needsLogin = false;
@@ -137,16 +137,16 @@ namespace WinCalendar
                 {
                     string code = null;
                     try { code = Json.Text(Json.Object(body), "error"); } catch (ArgumentException) { }
-                    if (code == "invalid_grant") { needsLogin = true; accessToken = null; throw new GoogleFailure("Доступ Google истёк или отозван. Войдите снова.", true); }
-                    if (code == "invalid_client" || code == "unauthorized_client") throw new GoogleFailure("Google не принял OAuth-клиент. Проверьте Client ID и Client secret в настройках.", true);
-                    throw new GoogleFailure("Не удалось получить доступ Google. Повторите вход позже.", true);
+                    if (code == "invalid_grant") { needsLogin = true; accessToken = null; throw new GoogleFailure(UiText.Get("Доступ Google истёк или отозван. Войдите снова."), true); }
+                    if (code == "invalid_client" || code == "unauthorized_client") throw new GoogleFailure(UiText.Get("Google не принял OAuth-клиент. Проверьте Client ID и Client secret в настройках."), true);
+                    throw new GoogleFailure(UiText.Get("Не удалось получить доступ Google. Повторите вход позже."), true);
                 }
                 Dictionary<string, object> result = Json.Object(body);
                 string granted = Json.Text(result, "scope");
                 if (granted != null && !HasRequiredScopes(granted))
                 {
                     needsLogin = true;
-                    throw new GoogleFailure("Нужно разрешение на список календарей. Нажмите «Войти в Google» и подтвердите доступ.", true);
+                    throw new GoogleFailure(UiText.Get("Нужно разрешение на список календарей. Нажмите «Войти в Google» и подтвердите доступ."), true);
                 }
                 return result;
             }
@@ -155,7 +155,7 @@ namespace WinCalendar
         private void SetAccess(Dictionary<string, object> token)
         {
             accessToken = Json.Text(token, "access_token");
-            if (String.IsNullOrEmpty(accessToken)) throw new GoogleFailure("Google не вернул доступ. Повторите вход.", true);
+            if (String.IsNullOrEmpty(accessToken)) throw new GoogleFailure(UiText.Get("Google не вернул доступ. Повторите вход."), true);
             object seconds;
             int duration = token.TryGetValue("expires_in", out seconds) ? Convert.ToInt32(seconds, CultureInfo.InvariantCulture) : 3600;
             accessExpires = DateTime.UtcNow.AddSeconds(Math.Max(0, duration - 60));
@@ -166,7 +166,7 @@ namespace WinCalendar
             await tokenLock.WaitAsync(cancellation).ConfigureAwait(false);
             try
             {
-                if (!Connected) throw new GoogleFailure("Войдите в Google, чтобы видеть встречи.", true);
+                if (!Connected) throw new GoogleFailure(UiText.Get("Войдите в Google, чтобы видеть встречи."), true);
                 if (!String.IsNullOrEmpty(accessToken) && DateTime.UtcNow < accessExpires) return accessToken;
                 Dictionary<string, string> fields = ClientFields();
                 fields.Add("grant_type", "refresh_token"); fields.Add("refresh_token", refreshToken);
@@ -226,9 +226,9 @@ namespace WinCalendar
                 if (!String.IsNullOrEmpty(page)) url += "&pageToken=" + Uri.EscapeDataString(page);
                 GoogleCalendarList parsed = GoogleCalendarList.Parse(await ReadJsonAsync(url, true, cancellation).ConfigureAwait(false));
                 calendars.AddRange(parsed.Calendars); page = parsed.NextPage;
-                if (!String.IsNullOrEmpty(page) && !pages.Add(page)) throw new GoogleFailure("Не удалось получить полный список календарей. Повторите обновление.", false);
+                if (!String.IsNullOrEmpty(page) && !pages.Add(page)) throw new GoogleFailure(UiText.Get("Не удалось получить полный список календарей. Повторите обновление."), false);
             } while (!String.IsNullOrEmpty(page));
-            if (calendars.Count == 0) throw new GoogleFailure("Google не вернул доступных календарей. Проверьте аккаунт или войдите снова.", true);
+            if (calendars.Count == 0) throw new GoogleFailure(UiText.Get("Google не вернул доступных календарей. Проверьте аккаунт или войдите снова."), true);
             return calendars.GroupBy(c => c.Id).Select(group => group.First()).ToList();
         }
 
@@ -243,7 +243,7 @@ namespace WinCalendar
                 string url = EventsUrl(first, end, zone, page, calendar.Id);
                 CalendarPage parsed = CalendarPage.Parse(await ReadJsonAsync(url, false, cancellation).ConfigureAwait(false), calendar.DefaultReminders);
                 events.AddRange(parsed.Events); page = parsed.NextPage;
-                if (!String.IsNullOrEmpty(page) && !pages.Add(page)) throw new GoogleFailure("Google вернул неполный список. Повторите обновление.", false);
+                if (!String.IsNullOrEmpty(page) && !pages.Add(page)) throw new GoogleFailure(UiText.Get("Google вернул неполный список. Повторите обновление."), false);
             } while (!String.IsNullOrEmpty(page));
             return events.GroupBy(e => e.Id ?? e.Start + e.Title).Select(group => group.First()).ToList();
         }
@@ -259,20 +259,20 @@ namespace WinCalendar
                     using (HttpResponseMessage response = await http.SendAsync(request, cancellation).ConfigureAwait(false))
                     {
                         if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0) { accessExpires = DateTime.MinValue; continue; }
-                        if (response.StatusCode == HttpStatusCode.Unauthorized) { needsLogin = true; throw new GoogleFailure("Доступ к Google отозван. Войдите снова.", true); }
+                        if (response.StatusCode == HttpStatusCode.Unauthorized) { needsLogin = true; throw new GoogleFailure(UiText.Get("Доступ к Google отозван. Войдите снова."), true); }
                         if (response.StatusCode == HttpStatusCode.Forbidden && calendarList)
                         {
                             needsLogin = true;
-                            throw new GoogleFailure("Нужно разрешение на список календарей. Нажмите «Войти в Google» и подтвердите доступ.", true);
+                            throw new GoogleFailure(UiText.Get("Нужно разрешение на список календарей. Нажмите «Войти в Google» и подтвердите доступ."), true);
                         }
-                        if (response.StatusCode == HttpStatusCode.Forbidden) throw new GoogleFailure("Google запретил чтение одного из календарей. Проверьте разрешения аккаунта.", false);
-                        if ((int)response.StatusCode == 429) throw new GoogleFailure("Google временно ограничил запросы. Обновление повторится позже.", false);
-                        if (!response.IsSuccessStatusCode) throw new GoogleFailure("Google Calendar временно недоступен. Попробуйте позже.", false);
+                        if (response.StatusCode == HttpStatusCode.Forbidden) throw new GoogleFailure(UiText.Get("Google запретил чтение одного из календарей. Проверьте разрешения аккаунта."), false);
+                        if ((int)response.StatusCode == 429) throw new GoogleFailure(UiText.Get("Google временно ограничил запросы. Обновление повторится позже."), false);
+                        if (!response.IsSuccessStatusCode) throw new GoogleFailure(UiText.Get("Google Calendar временно недоступен. Попробуйте позже."), false);
                         return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                     }
                 }
             }
-            throw new GoogleFailure("Не удалось обновить доступ Google. Войдите снова.", true);
+            throw new GoogleFailure(UiText.Get("Не удалось обновить доступ Google. Войдите снова."), true);
         }
 
         public void Dispose() { http.Dispose(); accessToken = refreshToken = clientSecret = null; }

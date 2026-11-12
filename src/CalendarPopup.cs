@@ -33,12 +33,14 @@ namespace WinCalendar
         private DateTime closedAtPin = DateTime.MinValue;
         private bool disposed, disconnecting, configuring, editorVisible, loginAfterSave;
         internal event EventHandler ExitRequested;
+        internal event Action PreferencesChanged;
         internal CalendarPanel Panel { get; private set; }
         internal bool Visible { get { return window.Visible; } }
         internal IntPtr Handle { get { return window.Handle; } }
         internal Rectangle Bounds { get { return window.Bounds; } }
         internal GoogleClientEditor Editor { get { return editor; } }
         internal bool EditorVisible { get { return editorVisible; } }
+        internal bool PreferencesVisible { get { return preferencesVisible; } }
         internal Form ViewWindow { get { return window; } }
 
         internal CalendarPopup(Func<DateTime> now, Action openGoogle, bool connectGoogle = false, GoogleCalendarClient client = null)
@@ -46,6 +48,7 @@ namespace WinCalendar
             clock = now; shell = connectGoogle;
             preferenceStore = shell ? new PreferenceStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "Preferences.bin")) : null;
             preferences = preferenceStore == null ? new AppPreferences() : preferenceStore.Load();
+            if (shell) UiText.Language = preferences.Language;
             Panel = new CalendarPanel(now());
             Panel.EventList.Clock = delegate { return new DateTimeOffset(clock()); };
             Panel.SetPreferences(preferences);
@@ -59,7 +62,9 @@ namespace WinCalendar
             Panel.MeetRequested += delegate(string url) { string safe = CalendarPage.SafeMeetLink(url); if (safe != null) { Hide(); Program.OpenBrowser(safe); } };
             Panel.OptionsRequested += delegate { OpenPreferences(); };
             Panel.SnoozeRequested += delegate(int minutes) { if (reminders != null && reminders.Snooze(minutes)) Hide(); };
-            preferencesPage.BackRequested += delegate { ShowCalendarSettings(); };
+            preferencesPage.BackRequested += delegate { ShowCalendar(); };
+            preferencesPage.ConnectionRequested += delegate { ShowCalendarSettings(); };
+            preferencesPage.ReminderPreviewRequested += delegate { PreviewReminder(); };
             preferencesPage.CloseRequested += delegate { Hide(); };
             preferencesPage.SaveRequested += SavePreferences;
             preferencesPage.CatalogRefreshRequested += delegate { RefreshCatalog(); };
@@ -102,7 +107,7 @@ namespace WinCalendar
                     sync = new CalendarSync(google, new CalendarCache(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "GoogleCache")));
                     sync.Changed += Panel.SetData;
                 }
-                catch (Exception) { Panel.SetData(new CalendarViewData { Message = "Хранилище Windows недоступно. Повторите запуск приложения." }); }
+                catch (Exception) { Panel.SetData(new CalendarViewData { Message = UiText.Get("Хранилище Windows недоступно. Повторите запуск приложения.") }); }
                 Panel.RangeChanged += async delegate { await RefreshEventsAsync(false); };
                 Panel.RefreshRequested += async delegate { await RefreshEventsAsync(true); if (reminders != null) await reminders.RefreshAsync(true); };
                 Panel.ConnectRequested += async delegate { await ConnectAsync(); };
@@ -138,7 +143,7 @@ namespace WinCalendar
             int dpi = (int)GetDpiForWindow(window.Handle);
             Panel.SetDpi(dpi); editor.SetDpi(dpi); preferencesPage.SetDpi(dpi);
             if (!editorVisible && !preferencesVisible) Panel.Reset(clock());
-            Rectangle bounds = Place(Panel.NaturalSize, anchor, work);
+            Rectangle bounds = Place(preferencesVisible ? preferencesPage.NaturalSize : Panel.NaturalSize, anchor, work);
             window.Bounds = bounds;
             if (!window.Visible) window.Show();
             window.Reveal();
@@ -166,8 +171,20 @@ namespace WinCalendar
             editorVisible = false; editor.Visible = false; Panel.Visible = true;
             if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
             Panel.ShowSettings(true);
+            ResizeForPage();
             if (shell) Panel.SetStartup(ShellIntegration.StartsWithWindows);
             window.Reveal();
+        }
+        internal void ShowCalendar()
+        {
+            preferencesVisible = false; editorVisible = false; preferencesPage.Visible = editor.Visible = false; Panel.Visible = true;
+            Panel.ShowSettings(false); ResizeForPage(); window.Reveal();
+        }
+        private void ResizeForPage()
+        {
+            int dpi = (int)GetDpiForWindow(window.Handle); Panel.SetDpi(dpi); editor.SetDpi(dpi); preferencesPage.SetDpi(dpi);
+            Point anchor = new Point(anchorArea.Left + anchorArea.Width / 2, anchorArea.Top + anchorArea.Height / 2);
+            window.Bounds = Place(preferencesVisible ? preferencesPage.NaturalSize : Panel.NaturalSize, anchor, Screen.FromPoint(anchor).WorkingArea);
         }
 
         private async Task RefreshEventsAsync(bool force)
@@ -184,7 +201,7 @@ namespace WinCalendar
                 preferences.Calendars = google.LastCalendars.Select(c => new CalendarChoice { Id = c.Id, Name = c.Name, Color = c.Color }).ToList();
             preferencesPage.BeginEdit(preferences); preferencesVisible = true; editorVisible = false; editor.Visible = false;
             if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
-            Panel.Visible = false; preferencesPage.Visible = true; preferencesPage.BringToFront(); window.Reveal();
+            Panel.Visible = false; preferencesPage.Visible = true; preferencesPage.BringToFront(); ResizeForPage(); window.Reveal();
             if (preferences.Calendars.Count == 0 && google != null && google.Connected) RefreshCatalog();
         }
         private async void RefreshCatalog()
@@ -200,16 +217,23 @@ namespace WinCalendar
                 if (preferencesVisible) preferencesPage.SetCatalog(preferences.Calendars);
             }
             catch (OperationCanceledException) { }
-            catch (Exception) { if (!disposed && preferencesVisible) preferencesPage.ShowError("Не удалось загрузить список Google."); }
+            catch (Exception) { if (!disposed && preferencesVisible) preferencesPage.ShowError(UiText.Get("Не удалось загрузить список Google.")); }
             finally { catalogLoading = false; }
         }
         private void SavePreferences(AppPreferences value)
         {
-            try { if (preferenceStore != null) preferenceStore.Save(value); }
-            catch (Exception) { preferencesPage.ShowError("Не удалось сохранить настройки."); return; }
-            preferences = value; Panel.SetPreferences(value);
+            try
+            {
+                if (preferenceStore != null) preferenceStore.Save(value);
+                if (shell && value.WeatherWidgetChange.HasValue) WeatherDateWindow.IsEnabled = value.WeatherWidgetChange.Value;
+                if (shell && value.StartupChange.HasValue) ShellIntegration.StartsWithWindows = value.StartupChange.Value;
+            }
+            catch (Exception) { preferencesPage.ShowError(UiText.Get("Не удалось сохранить настройки.")); return; }
+            preferences = value; UiText.Language = value.Language;
+            UiText.Apply(Panel); UiText.Apply(editor); UiText.Apply(preferencesPage); Panel.SetPreferences(value);
             if (reminders != null) reminders.SetPreferences(value);
-            ShowCalendarSettings();
+            if (PreferencesChanged != null) PreferencesChanged();
+            ShowCalendar();
         }
 
         internal void ConfigureGoogle() { OpenClientEditor(false); }
@@ -225,6 +249,7 @@ namespace WinCalendar
             editorVisible = true;
             if (!window.Visible) ShowAt(Cursor.Position, Screen.FromPoint(Cursor.Position).WorkingArea);
             Panel.Visible = false; editor.Visible = true; editor.BringToFront();
+            ResizeForPage();
             window.Reveal(); editor.Select();
         }
 
@@ -244,7 +269,7 @@ namespace WinCalendar
             catch (Exception error)
             {
                 GoogleFailure failure = error as GoogleFailure;
-                if (!disposed) editor.ShowError(failure == null ? "Не удалось сохранить данные в хранилище Windows." : failure.Message);
+                if (!disposed) editor.ShowError(failure == null ? UiText.Get("Не удалось сохранить данные в хранилище Windows.") : failure.Message);
                 return;
             }
             finally { configuring = false; if (!disposed) editor.SetBusy(false); }
@@ -261,7 +286,7 @@ namespace WinCalendar
             Hide(); sync.Cancel();
             if (reminders != null) reminders.Pause();
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); login = cancellation;
-            Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = "Завершите вход в открывшемся браузере." });
+            Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = UiText.Get("Завершите вход в открывшемся браузере.") });
             try
             {
                 await google.ConnectAsync(cancellation.Token);
@@ -269,13 +294,13 @@ namespace WinCalendar
             }
             catch (OperationCanceledException)
             {
-                if (!disposed) Panel.SetData(new CalendarViewData { Connection = google.Connected ? CalendarConnection.Connected : CalendarConnection.Disconnected, Message = "Вход отменён. Можно повторить." });
+                if (!disposed) Panel.SetData(new CalendarViewData { Connection = google.Connected ? CalendarConnection.Connected : CalendarConnection.Disconnected, Message = UiText.Get("Вход отменён. Можно повторить.") });
             }
             catch (Exception error)
             {
                 GoogleFailure failure = error as GoogleFailure;
                 if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin,
-                    Message = failure == null ? "Не удалось войти в Google. Проверьте сеть и настройки." : failure.Message });
+                    Message = failure == null ? UiText.Get("Не удалось войти в Google. Проверьте сеть и настройки.") : failure.Message });
             }
             finally { login = null; cancellation.Dispose(); }
             if (!disposed && google.Connected)
@@ -287,14 +312,14 @@ namespace WinCalendar
             if (google == null || disposed || disconnecting || login != null) return;
             disconnecting = true; sync.Clear();
             if (reminders != null) reminders.ResetAccount();
-            Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = "Отключаем Google…" });
+            Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = UiText.Get("Отключаем Google…") });
             try
             {
                 bool revoked = await google.DisconnectAsync(lifetime.Token);
                 if (!disposed) ResetCalendarPreferences();
-                if (!disposed) { sync.Clear(); if (reminders != null) reminders.ResetAccount(); if (!revoked) Panel.SetData(new CalendarViewData { Message = "Локальный доступ удалён. Отзыв в Google не выполнен: нет связи." }); }
+                if (!disposed) { sync.Clear(); if (reminders != null) reminders.ResetAccount(); if (!revoked) Panel.SetData(new CalendarViewData { Message = UiText.Get("Локальный доступ удалён. Отзыв в Google не выполнен: нет связи.") }); }
             }
-            catch (Exception) { if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin, Message = "Не удалось удалить доступ. Повторите отключение." }); }
+            catch (Exception) { if (!disposed) Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin, Message = UiText.Get("Не удалось удалить доступ. Повторите отключение.") }); }
             finally { disconnecting = false; }
         }
 

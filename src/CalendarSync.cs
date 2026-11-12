@@ -41,7 +41,7 @@ namespace WinCalendar
             if (!source.Connected)
             {
                 if (Current.Connection == CalendarConnection.NeedsLogin) { Publish(Current); return; }
-                Publish(new CalendarViewData { Connection = CalendarConnection.Disconnected, Message = "Подключите Google, чтобы видеть встречи." }); return;
+                Publish(new CalendarViewData { Connection = CalendarConnection.Disconnected, Message = UiText.Get("Подключите Google, чтобы видеть встречи.") }); return;
             }
             string identity = source.CacheIdentity;
             string rangeIdentity = identity + ":range:" + end.ToString("yyyyMMdd");
@@ -61,14 +61,14 @@ namespace WinCalendar
                 memory[key] = snapshot;
                 bool saved = cache.Write(rangeIdentity, first, zone, snapshot);
                 retryAfter = DateTime.MinValue;
-                Publish(FromSnapshot(snapshot, false, saved ? null : "Встречи обновлены; локальный кеш недоступен."));
+                Publish(FromSnapshot(snapshot, false, saved ? null : UiText.Get("Встречи обновлены; локальный кеш недоступен.")));
             }
             catch (OperationCanceledException)
             {
                 if (!disposed && request == generation && !cancellation.IsCancellationRequested)
                 {
                     retryAfter = DateTime.UtcNow.AddMinutes(2);
-                    CalendarViewData timedOut = FromSnapshot(snapshot, false, "Превышено время ожидания. Повторите обновление.");
+                    CalendarViewData timedOut = FromSnapshot(snapshot, false, UiText.Get("Превышено время ожидания. Повторите обновление."));
                     timedOut.LoadError = true; Publish(timedOut);
                 }
             }
@@ -77,7 +77,7 @@ namespace WinCalendar
                 if (disposed || request != generation) return;
                 retryAfter = DateTime.UtcNow.AddMinutes(2);
                 GoogleFailure google = error as GoogleFailure;
-                string message = google != null ? google.Message : error is HttpRequestException ? "Нет связи с Google. Проверьте интернет." : "Не удалось загрузить встречи. Повторите обновление.";
+                string message = google != null ? google.Message : error is HttpRequestException ? UiText.Get("Нет связи с Google. Проверьте интернет.") : UiText.Get("Не удалось загрузить встречи. Повторите обновление.");
                 CalendarViewData data = FromSnapshot(snapshot, false, message);
                 data.LoadError = true;
                 if (google != null && google.NeedsLogin) data.Connection = CalendarConnection.NeedsLogin;
@@ -90,7 +90,7 @@ namespace WinCalendar
         {
             return new CalendarViewData { Connection = CalendarConnection.Connected, Events = snapshot == null ? new List<CalendarEvent>() : snapshot.Events,
                 HasSnapshot = snapshot != null, UpdatedUtc = snapshot == null ? (DateTime?)null : snapshot.UpdatedUtc, Loading = loading,
-                Message = message ?? (loading ? "Обновление встреч…" : snapshot == null ? "Обновление будет повторено позже." : "Календари Google") };
+                Message = message ?? (loading ? UiText.Get("Обновление встреч…") : snapshot == null ? UiText.Get("Обновление будет повторено позже.") : UiText.Get("Календари Google")) };
         }
 
         internal void Cancel()
@@ -103,7 +103,7 @@ namespace WinCalendar
         {
             Cancel(); memory.Clear(); retryAfter = DateTime.MinValue;
             try { cache.Clear(); } catch (System.IO.IOException) { } catch (UnauthorizedAccessException) { }
-            Publish(new CalendarViewData { Connection = CalendarConnection.Disconnected, Message = "Google отключён. Локальные встречи удалены." });
+            Publish(new CalendarViewData { Connection = CalendarConnection.Disconnected, Message = UiText.Get("Google отключён. Локальные встречи удалены.") });
         }
 
         private void Publish(CalendarViewData data) { Current = data; if (Changed != null) Changed(data); }

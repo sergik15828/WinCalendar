@@ -54,11 +54,13 @@ namespace WinCalendar
         {
             if (active == enabled) return;
             active = enabled;
+            TaskbarAnchor.ReminderActive = enabled;
             if (!enabled) { animation.Stop(); Hide(); return; }
             try { if (Preferences.SoundEnabled && Preferences.Volume > 0 && !Preferences.IsQuiet(DateTime.Now)) playSound(); }
             catch (InvalidOperationException) { }
             int enabledMotion;
             motion = SystemParametersInfo(0x1042, 0, out enabledMotion, 0) && enabledMotion != 0 && !SystemInformation.HighContrast;
+            TaskbarAnchor.ReminderMotion = motion; TaskbarAnchor.ReminderStrength = Preferences.PulseStrength;
             animation.Interval = motion ? 33 : 1000;
             clock.Restart(); animation.Start(); Render();
         }
@@ -84,6 +86,7 @@ namespace WinCalendar
         private void Render()
         {
             if (!active || IsDisposed) return;
+            if (!TaskbarAnchor.Prototype.IsEmpty) { Hide(); return; }
             if (!refreshing && DateTime.UtcNow - anchorChecked > TimeSpan.FromSeconds(2))
             { anchorChecked = DateTime.UtcNow; RefreshAnchor(); }
             Rectangle pin = TaskbarAnchor.Current;
@@ -115,13 +118,6 @@ namespace WinCalendar
                 float spread = (float)(3 * breathe * power);
                 using (GraphicsPath outline = Rounded(8 - spread, 8 - spread, 32 + 2 * spread, 32 + 2 * spread, 6 + spread))
                 using (Pen pen = new Pen(Color.FromArgb(Math.Min(255, (int)((65 + 175 * breathe) * power)), accent), (float)(1.25 + 1.25 * breathe * power))) graphics.DrawPath(pen, outline);
-                float radius = (float)(3 + 1.5 * breathe), ripple = (float)(5 + 6 * phase);
-                using (Pen ring = new Pen(Color.FromArgb((int)(150 * (1 - phase)), accent), 1.4f))
-                    graphics.DrawEllipse(ring, 36 - ripple, 12 - ripple, 2 * ripple, 2 * ripple);
-                using (Brush fill = new SolidBrush(Color.FromArgb((int)(180 + 75 * breathe), accent)))
-                    graphics.FillEllipse(fill, 36 - radius, 12 - radius, 2 * radius, 2 * radius);
-                using (Pen border = new Pen(Color.FromArgb(235, Color.White), 0.9f))
-                    graphics.DrawEllipse(border, 36 - radius, 12 - radius, 2 * radius, 2 * radius);
             }
             return bitmap;
         }
@@ -161,7 +157,7 @@ namespace WinCalendar
         }
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { animation.Dispose(); if (chime != null) chime.Dispose(); }
+            if (disposing) { TaskbarAnchor.ReminderActive = false; animation.Dispose(); if (chime != null) chime.Dispose(); }
             base.Dispose(disposing);
         }
 

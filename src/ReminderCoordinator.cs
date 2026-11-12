@@ -96,7 +96,7 @@ namespace WinCalendar
             string account = source.CacheIdentity;
             if (account == identity && engine != null) return;
             identity = account; events.Clear(); hasSnapshot = false; lastSnapshotBoundary = null;
-            engine = new ReminderEngine(stateDirectory, account, delegate { return DateTimeOffset.Now; });
+            engine = new ReminderEngine(stateDirectory, account, delegate { return DateTimeOffset.Now; }, preferences.ReminderTiming);
             engine.RemoveDisabled(preferences.DisabledCalendars);
         }
 
@@ -107,14 +107,16 @@ namespace WinCalendar
             if (!suspended && source.Connected && engine != null && hasSnapshot) engine.Evaluate(events.Where(preferences.Includes));
             overlay.SetActive(preview || (!suspended && source.Connected && engine != null && engine.Active));
             CalendarEvent next = MeetingTools.Next(events.Where(preferences.Includes), DateTimeOffset.Now);
-            nextTip.UpdateTip(next == null ? null : MeetingTools.NextLabel(next, DateTimeOffset.Now, preferences.PrivateMode),
-                preferences.ShowNextTooltip && !popupVisible() && !suspended && source.Connected);
+            nextTip.UpdateTip(preferences.ShowNextTooltip && next != null && !suspended && source.Connected
+                ? MeetingTools.NextLabel(next, DateTimeOffset.Now, preferences.PrivateMode)
+                : DateTime.Now.ToString("dddd, d MMMM yyyy", DateText.Culture), !popupVisible());
             if (UpcomingChanged != null) UpcomingChanged();
         }
 
         internal void SetPreferences(AppPreferences value)
         {
-            preferences = value; overlay.Preferences = value; nextTip.Hide();
+            preferences = value; overlay.Preferences = value; TaskbarAnchor.ReminderStrength = value.PulseStrength; nextTip.Hide();
+            if (engine != null) engine.SetTiming(value.ReminderTiming);
             if (engine != null) engine.RemoveDisabled(value.DisabledCalendars);
             Evaluate();
         }
@@ -128,7 +130,7 @@ namespace WinCalendar
         {
             preview = false;
             if (engine == null && source.Connected && !suspended) EnsureAccount();
-            if (engine != null) engine.Acknowledge(); overlay.SetActive(false); nextTip.Hide();
+            if (engine != null) engine.Acknowledge(); overlay.SetActive(false); nextTip.UpdateTip(null, false);
             if (UpcomingChanged != null) UpcomingChanged();
         }
         internal void Preview() { preview = true; overlay.SetActive(true); }

@@ -17,6 +17,7 @@ namespace WinCalendar
         public Dictionary<string, DateTime> Snoozed { get; set; }
         public DateTime? SnoozeAtUtc { get; set; }
         public DateTime AcknowledgedAtUtc { get; set; }
+        public int TimingMode { get; set; }
     }
 
     internal sealed class ReminderEngine
@@ -25,11 +26,12 @@ namespace WinCalendar
         private readonly string path;
         private ReminderState state;
         private DateTime savedAt;
+        private DateTime timingChangedUtc;
         internal bool Active { get { return state.Pending.Count > 0; } }
         internal bool CanSnooze { get { return Active || (state.Acknowledged.Count > 0 && clock().UtcDateTime - state.AcknowledgedAtUtc < TimeSpan.FromMinutes(15)); } }
         internal DateTime LastCheckUtc { get { return state.LastCheckUtc; } }
 
-        internal ReminderEngine(string directory, string identity, Func<DateTimeOffset> now)
+        internal ReminderEngine(string directory, string identity, Func<DateTimeOffset> now, int timingMode = 0)
         {
             clock = now;
             using (SHA256 hash = SHA256.Create())
@@ -48,13 +50,23 @@ namespace WinCalendar
                 state = new ReminderState { LastCheckUtc = now().UtcDateTime, Seen = new Dictionary<string, DateTime>(), Pending = new Dictionary<string, DateTime>() };
             if (state.Acknowledged == null) state.Acknowledged = new Dictionary<string, DateTime>();
             if (state.Snoozed == null) state.Snoozed = new Dictionary<string, DateTime>();
+            SetTiming(timingMode);
         }
+        internal void SetTiming(int mode)
+        {
+            mode = Math.Max(0, Math.Min(2, mode));
+            if (state.TimingMode == mode) return;
+            state.TimingMode = mode; timingChangedUtc = state.LastCheckUtc = clock().UtcDateTime; Save();
+        }
+        internal static IEnumerable<int> MinutesFor(CalendarEvent item, int mode)
+        { return mode == 0 || item.AllDay ? (IEnumerable<int>)(item.PopupReminderMinutes ?? new List<int>()) : new[] { mode == 1 ? 5 : 2 }; }
 
         internal void Evaluate(IEnumerable<CalendarEvent> events, DateTime? includeSince = null)
         {
             DateTime now = clock().UtcDateTime;
             DateTime after = state.LastCheckUtc > now ? now : state.LastCheckUtc < now.AddDays(-1) ? now.AddDays(-1) : state.LastCheckUtc;
             if (includeSince.HasValue && includeSince.Value < after) after = includeSince.Value < now.AddDays(-1) ? now.AddDays(-1) : includeSince.Value;
+            if (timingChangedUtc > after) after = timingChangedUtc > now ? now : timingChangedUtc;
             bool changed = false;
             if (state.SnoozeAtUtc.HasValue && state.SnoozeAtUtc.Value <= now)
             {
@@ -63,9 +75,9 @@ namespace WinCalendar
             }
             foreach (CalendarEvent item in events)
             {
-                if (item.PopupReminderMinutes == null || item.ReminderEnd.UtcDateTime <= now) continue;
+                if (item.ReminderEnd.UtcDateTime <= now) continue;
                 DateTime start = item.ReminderStart.UtcDateTime;
-                foreach (int minutes in item.PopupReminderMinutes)
+                foreach (int minutes in MinutesFor(item, state.TimingMode))
                 {
                     DateTime due = start.AddMinutes(-minutes);
                     if (due > now || due <= after) continue;

@@ -77,7 +77,7 @@ namespace WinCalendar
                             if (!ValidateState(state, query["state"])) { await ReplyAsync(stream, false, timeout.Token).ConfigureAwait(false); continue; }
                             string code = query["code"];
                             await ReplyAsync(stream, !String.IsNullOrEmpty(code), timeout.Token).ConfigureAwait(false);
-                            if (!String.IsNullOrEmpty(query["error"]) || String.IsNullOrEmpty(code)) throw new GoogleFailure("Вход отменён или доступ к календарю не разрешён.", true);
+                            if (!String.IsNullOrEmpty(query["error"]) || String.IsNullOrEmpty(code)) throw new GoogleFailure(UiText.Get("Вход отменён или доступ к календарю не разрешён."), true);
                             return new OAuthCode { Code = code, Verifier = verifier, RedirectUri = redirect };
                         }
                     }
@@ -112,14 +112,14 @@ namespace WinCalendar
                     string text = Encoding.ASCII.GetString(buffer, 0, count);
                     if (text.Contains("\r\n\r\n")) return text;
                 }
-                throw new GoogleFailure("Не удалось завершить вход в браузере. Повторите попытку.", true);
+                throw new GoogleFailure(UiText.Get("Не удалось завершить вход в браузере. Повторите попытку."), true);
             }
         }
 
         private static Task ReplyAsync(Stream stream, bool success, CancellationToken cancellation)
         {
             string html = "<!doctype html><meta charset=\"utf-8\"><title>WinCalendar</title><p>"
-                + (success ? "Ответ Google получен. Можно закрыть эту вкладку и открыть WinCalendar." : "Запрос входа не подтверждён. Вернитесь в WinCalendar и повторите вход.") + "</p>";
+                + (success ? UiText.Get("Ответ Google получен. Можно закрыть эту вкладку и открыть WinCalendar.") : UiText.Get("Запрос входа не подтверждён. Вернитесь в WinCalendar и повторите вход.")) + "</p>";
             byte[] body = Encoding.UTF8.GetBytes(html);
             byte[] head = Encoding.ASCII.GetBytes("HTTP/1.1 " + (success ? "200 OK" : "400 Bad Request") + "\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nContent-Security-Policy: default-src 'none'\r\nContent-Length: " + body.Length + "\r\nConnection: close\r\n\r\n");
             byte[] response = new byte[head.Length + body.Length]; head.CopyTo(response, 0); body.CopyTo(response, head.Length);

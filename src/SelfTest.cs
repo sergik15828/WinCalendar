@@ -61,6 +61,9 @@ namespace WinCalendar
                 RemainingMeetingsSelfTest.Run(directory, Check);
                 WeatherPrototypeSelfTest.Run(directory, Check);
                 await ReminderSelfTest.RunAsync(directory, Check);
+                ReminderTimingSelfTest.Run(directory, Check);
+                await WidgetUsabilitySelfTest.RunAsync(directory, Check);
+                UnifiedPreferencesSelfTest.Run(directory, Check);
                 Results.Add("PASS all checks; popup uses a tool window, background startup stays hidden.");
             }
             catch (Exception error)
@@ -170,7 +173,7 @@ namespace WinCalendar
                 foreach (DateTime date in new[] { new DateTime(2026, 12, 31), new DateTime(2027, 1, 1), new DateTime(2024, 2, 28), new DateTime(2024, 2, 29), new DateTime(2024, 3, 1) })
                 {
                     clock = date;
-                    Check(window.RefreshDate(false) && window.CurrentDate == date && window.Text.Contains(date.ToString("d MMMM yyyy", DateText.Russian)) && IsIconic(handle),
+                    Check(window.RefreshDate(false) && window.CurrentDate == date && window.Text.Contains(date.ToString("d MMMM yyyy", DateText.Culture)) && IsIconic(handle),
                         "Local date and icon update without a window: " + date.ToString("yyyy-MM-dd"));
                 }
                 Check(ShellIntegration.GetWindowAppId(handle) == null, "Window keeps the native executable identity");

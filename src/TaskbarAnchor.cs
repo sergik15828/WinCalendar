@@ -14,6 +14,10 @@ namespace WinCalendar
         private static Task<Rectangle> pending;
         private static DateTime checkedAt;
         internal static Rectangle Prototype;
+        internal static Rectangle PrototypeHitArea;
+        internal static Rectangle HoverArea { get { return PrototypeHitArea.IsEmpty ? Current : PrototypeHitArea; } }
+        internal static bool ReminderActive, ReminderMotion;
+        internal static int ReminderStrength = 1;
         internal static Rectangle Current { get { lock (Gate) return Prototype.IsEmpty ? cached : Prototype; } }
 
         internal static Task<Rectangle> RefreshAsync()

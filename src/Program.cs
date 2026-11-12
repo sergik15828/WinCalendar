@@ -39,7 +39,7 @@ namespace WinCalendar
                 int command = GetLaunchCommand(args.Length == 0 ? null : args[0]);
                 if (args.Length > 1 || command < 0)
                 {
-                    MessageBox.Show("Неизвестный параметр запуска. Откройте WinDate.exe без параметров.", "WinCalendar");
+                    MessageBox.Show(UiText.Get("Неизвестный параметр запуска. Откройте WinDate.exe без параметров."), "WinCalendar");
                     return 2;
                 }
                 bool firstInstance;
@@ -57,6 +57,7 @@ namespace WinCalendar
                             WeatherDateWindow.IsEnabled = command == WeatherOnCommand;
                         if (command == StartupOnCommand || command == StartupOffCommand)
                             ShellIntegration.StartsWithWindows = command == StartupOnCommand;
+                        UiText.Language = new PreferenceStore(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "Preferences.bin")).Load().Language;
                         ShellIntegration.EnsureAppShortcut();
                         Application.EnableVisualStyles();
                         Application.SetCompatibleTextRenderingDefault(false);
@@ -79,7 +80,7 @@ namespace WinCalendar
             }
             catch (Exception error)
             {
-                MessageBox.Show("Не удалось запустить индикатор даты.\n\n" + error.Message, "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(UiText.Get("Не удалось запустить индикатор даты.\n\n") + error.Message, "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
         }
@@ -122,7 +123,7 @@ namespace WinCalendar
 
         private static void BrowserUnavailable()
         {
-            MessageBox.Show("Не удалось открыть браузер. Выберите приложение по умолчанию для HTTPS в параметрах Windows и повторите попытку.", "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(UiText.Get("Не удалось открыть браузер. Выберите приложение по умолчанию для HTTPS в параметрах Windows и повторите попытку."), "WinCalendar", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         internal static bool PostCommand(int command, int targetProcess)
