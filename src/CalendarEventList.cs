@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace WinCalendar
 {
-    internal sealed class CalendarEventList : ListBox
+    internal sealed class CalendarEventList : ListBox, IMessageFilter
     {
         private CalendarPalette palette;
         private int dpi = 96;
@@ -19,6 +20,9 @@ namespace WinCalendar
         internal event Action<string> MeetRequested;
         internal AppPreferences Preferences = new AppPreferences();
         internal bool Weekly;
+        internal Func<DateTimeOffset> Clock = delegate { return DateTimeOffset.Now; };
+        internal Func<Point> PointerPosition = delegate { return MousePosition; };
+        private int wheelRemainder;
 
         private readonly Timer tooltipDelay = new Timer { Interval = 650 };
         private Point pointer;
@@ -91,12 +95,63 @@ namespace WinCalendar
 
         protected override void WndProc(ref Message message)
         {
+            if (message.Msg == 0x20a)
+            {
+                ScrollWheel((short)(message.WParam.ToInt64() >> 16)); message.Result = IntPtr.Zero; return;
+            }
+            if (message.Msg == 0x115)
+            {
+                ClearHover(); BeginUpdate();
+                try { base.WndProc(ref message); }
+                finally { EndUpdate(); }
+                UpdatePointer(); return;
+            }
             if (message.Msg == 0x201 || message.Msg == 0x203)
             {
                 int packed = message.LParam.ToInt32();
                 if (HitCard(new Point((short)(packed & 0xffff), (short)(packed >> 16))) < 0) return;
             }
             base.WndProc(ref message);
+        }
+
+        protected override void OnHandleCreated(EventArgs args)
+        { base.OnHandleCreated(args); Application.AddMessageFilter(this); }
+        protected override void OnHandleDestroyed(EventArgs args)
+        { Application.RemoveMessageFilter(this); base.OnHandleDestroyed(args); }
+        public bool PreFilterMessage(ref Message message)
+        {
+            if (message.Msg != 0x20a || !Visible || !IsHandleCreated || message.HWnd == Handle) return false;
+            Control target = Control.FromChildHandle(message.HWnd);
+            if (target == null || target.FindForm() != FindForm() || !ClientRectangle.Contains(PointToClient(PointerPosition()))) return false;
+            SendMessage(Handle, message.Msg, message.WParam, message.LParam); return true;
+        }
+        internal void ScrollWheel(int delta)
+        {
+            if (Items.Count == 0 || SystemInformation.MouseWheelScrollLines == 0) return;
+            wheelRemainder += delta; int steps = wheelRemainder / 120; wheelRemainder %= 120;
+            if (steps == 0) return;
+            int visibleRows = Math.Max(1, ClientSize.Height / Pixels(92));
+            int stride = SystemInformation.MouseWheelScrollLines < 0 ? visibleRows : Math.Max(1, SystemInformation.MouseWheelScrollLines / 3);
+            int next = Math.Max(0, Math.Min(Items.Count - visibleRows, TopIndex - steps * stride));
+            if (next == TopIndex) return;
+            ClearHover(); BeginUpdate();
+            try { TopIndex = next; }
+            finally { EndUpdate(); }
+            UpdatePointer();
+        }
+        private void UpdatePointer()
+        {
+            Point point = PointToClient(PointerPosition());
+            if (ClientRectangle.Contains(point)) OnMouseMove(new MouseEventArgs(MouseButtons.None, 0, point.X, point.Y, 0));
+        }
+        internal void RefreshTimeState()
+        {
+            if (!Visible) return;
+            for (int i = 0; i < Items.Count; i++)
+            {
+                EventRow row = (EventRow)Items[i]; bool past = row.Event.ReminderEnd <= Clock();
+                if (row.Past != past) { row.Past = past; InvalidateCard(i); }
+            }
         }
 
         private void ClearHover()
@@ -109,6 +164,7 @@ namespace WinCalendar
         {
             CalendarEvent[] all = events.ToArray();
             EventRow[] rows = all.OrderBy(e => Weekly ? DisplayDay(e, day, zone).Ticks : 0).ThenBy(e => e.SortOrder).Select(item => new EventRow { Event = item,
+                Past = item.ReminderEnd <= Clock(),
                 Title = Preferences.PrivateMode ? "Занято" : item.Title,
                 Conflict = all.Any(other => other != item && MeetingTools.Overlaps(item, other)),
                 Time = (Weekly ? DisplayDay(item, day, zone).ToString("ddd d MMM", DateText.Russian) + " · " : "") + item.TimeLabel(Weekly ? DisplayDay(item, day, zone) : day, zone),
@@ -124,6 +180,7 @@ namespace WinCalendar
             bool sameDay = contentKey != null && contentKey.StartsWith(day.ToString("yyyyMMdd"), StringComparison.Ordinal);
             contentKey = key;
             ClearHover();
+            wheelRemainder = 0;
             BeginUpdate(); Items.Clear();
             Items.AddRange(rows);
             if (sameDay && Items.Count > 0)
@@ -154,13 +211,11 @@ namespace WinCalendar
         {
             // Native tooltip windows can report mouse-leave while the pointer
             // still rests over this card. Keep its hover stable in that case.
-            if (HitCard(PointToClient(MousePosition)) < 0) ClearHover();
+            if (HitCard(PointToClient(PointerPosition())) < 0) ClearHover();
             base.OnMouseLeave(args);
         }
         protected override void OnVisibleChanged(EventArgs args)
         { if (!Visible) ClearHover(); base.OnVisibleChanged(args); }
-        protected override void OnMouseWheel(MouseEventArgs args)
-        { ClearHover(); base.OnMouseWheel(args); }
         protected override void OnDrawItem(DrawItemEventArgs args)
         {
             if (args.Index < 0 || palette == null) return;
@@ -176,40 +231,48 @@ namespace WinCalendar
         private void DrawCard(DrawItemEventArgs args)
         {
             EventRow row = (EventRow)Items[args.Index];
+            bool past = row.Event.ReminderEnd <= Clock(); row.Past = past;
             bool selected = (args.State & DrawItemState.Selected) != 0 || args.Index == hovered;
             Color background = selected ? palette.Hover : palette.EventSurface;
+            Color ink = past && !SystemInformation.HighContrast ? Mix(palette.Ink, palette.Surface, 0.68) : palette.Ink;
+            Color secondary = past ? ink : palette.Secondary;
+            Color accent = past ? ink : palette.Accent;
+            if (past && !selected && !SystemInformation.HighContrast) background = Mix(background, palette.Surface, 0.65);
             using (Brush surface = new SolidBrush(palette.Surface)) args.Graphics.FillRectangle(surface, args.Bounds);
             Rectangle card = CardBounds(args.Bounds);
             args.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (GraphicsPath path = Rounded(card, Pixels(8)))
             using (Brush fill = new SolidBrush(background))
-            using (Pen border = new Pen(palette.Rule)) { args.Graphics.FillPath(fill, path); args.Graphics.DrawPath(border, path); }
+            using (Pen border = new Pen(past ? Mix(palette.Rule, palette.Surface, 0.65) : palette.Rule)) { args.Graphics.FillPath(fill, path); args.Graphics.DrawPath(border, path); }
             bool meet = CalendarPage.SafeMeetLink(row.Event.MeetUrl) != null;
-            Rectangle time = new Rectangle(card.X + Pixels(12), card.Y + Pixels(7), card.Width - Pixels(meet ? 104 : 24), Pixels(18));
+            Rectangle time = new Rectangle(card.X + Pixels(12), card.Y + Pixels(7), card.Width - Pixels(meet ? 128 : 24), Pixels(18));
             Rectangle title = new Rectangle(time.X, card.Y + Pixels(27), card.Width - Pixels(24), Pixels(34));
             Rectangle source = new Rectangle(time.X + Pixels(10), card.Y + Pixels(64), card.Width - Pixels(row.Conflict ? 138 : 34), Pixels(16));
-            TextRenderer.DrawText(args.Graphics, row.Time, detailFont ?? Font, time, palette.Accent, TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
-            TextRenderer.DrawText(args.Graphics, row.Title, titleFont ?? Font, title, row.Event.Url == null ? palette.Secondary : palette.Ink,
+            TextRenderer.DrawText(args.Graphics, row.Time, detailFont ?? Font, time, accent, TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.VerticalCenter);
+            TextRenderer.DrawText(args.Graphics, row.Title, titleFont ?? Font, title, row.Event.Url == null ? secondary : ink,
                 TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.WordBreak);
-            TextRenderer.DrawText(args.Graphics, row.Source, detailFont ?? Font, source, palette.Secondary,
+            TextRenderer.DrawText(args.Graphics, row.Source, detailFont ?? Font, source, secondary,
                 TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);
-            using (Brush dot = new SolidBrush(SystemInformation.HighContrast ? palette.Ink : Preferences.ColorFor(row.Event, palette.Accent)))
+            using (Brush dot = new SolidBrush(SystemInformation.HighContrast ? palette.Ink : Mix(Preferences.ColorFor(row.Event, palette.Accent), palette.Surface, past ? 0.55 : 1)))
                 args.Graphics.FillEllipse(dot, time.X, source.Y + Pixels(5), Pixels(5), Pixels(5));
             if (row.Conflict) TextRenderer.DrawText(args.Graphics, "Пересечение", detailFont ?? Font,
-                new Rectangle(card.Right - Pixels(112), source.Top, Pixels(100), source.Height), palette.Accent, TextFormatFlags.Right | TextFormatFlags.SingleLine);
+                new Rectangle(card.Right - Pixels(112), source.Top, Pixels(100), source.Height), accent, TextFormatFlags.Right | TextFormatFlags.SingleLine);
             if (meet)
             {
                 Rectangle button = MeetBounds(args.Bounds);
                 using (GraphicsPath path = Rounded(button, Pixels(5)))
-                using (Brush fill = new SolidBrush(palette.Hover)) args.Graphics.FillPath(fill, path);
-                TextRenderer.DrawText(args.Graphics, "Войти в Meet", detailFont ?? Font, button, palette.Ink,
+                using (Brush fill = new SolidBrush(past ? Mix(palette.Accent, palette.Surface, 0.08) : palette.Accent)) args.Graphics.FillPath(fill, path);
+                TextRenderer.DrawText(args.Graphics, "Войти в Meet", detailFont ?? Font, button, past ? ink : palette.OnAccent,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
             }
             if ((args.State & DrawItemState.Focus) != 0) ControlPaint.DrawFocusRectangle(args.Graphics, Rectangle.Inflate(card, -3, -3), palette.Ink, background);
         }
 
         private Rectangle MeetBounds(Rectangle row)
-        { Rectangle card = CardBounds(row); return new Rectangle(card.Right - Pixels(92), card.Top + Pixels(5), Pixels(80), Pixels(23)); }
+        { Rectangle card = CardBounds(row); return new Rectangle(card.Right - Pixels(108), card.Top + Pixels(5), Pixels(96), Pixels(24)); }
+
+        private static Color Mix(Color foreground, Color background, double opacity)
+        { return Color.FromArgb((int)(foreground.R * opacity + background.R * (1 - opacity)), (int)(foreground.G * opacity + background.G * (1 - opacity)), (int)(foreground.B * opacity + background.B * (1 - opacity))); }
 
         private static GraphicsPath Rounded(Rectangle rect, int radius)
         {
@@ -244,9 +307,10 @@ namespace WinCalendar
         {
             internal CalendarEvent Event;
             internal string Time, Source, Title;
-            internal bool Conflict;
+            internal bool Conflict, Past;
             internal string Identity { get { return Event.CalendarId + "\u001f" + Event.Id + "\u001f" + Event.Start; } }
-            public override string ToString() { return Time + ", " + Title + ", " + Source + (Conflict ? ", Пересечение" : "") + (CalendarPage.SafeMeetLink(Event.MeetUrl) != null ? ", Войти в Meet: Alt+Enter" : ""); }
+            public override string ToString() { return Time + ", " + Title + ", " + Source + (Past ? ", Завершено" : "") + (Conflict ? ", Пересечение" : "") + (CalendarPage.SafeMeetLink(Event.MeetUrl) != null ? ", Войти в Meet: Alt+Enter" : ""); }
         }
+        [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wparam, IntPtr lparam);
     }
 }

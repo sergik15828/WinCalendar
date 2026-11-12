@@ -47,6 +47,7 @@ namespace WinCalendar
             preferenceStore = shell ? new PreferenceStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinCalendar", "Preferences.bin")) : null;
             preferences = preferenceStore == null ? new AppPreferences() : preferenceStore.Load();
             Panel = new CalendarPanel(now());
+            Panel.EventList.Clock = delegate { return new DateTimeOffset(clock()); };
             Panel.SetPreferences(preferences);
             editor = new GoogleClientEditor { Dock = DockStyle.Fill, Visible = false };
             preferencesPage = new PreferencesEditor { Dock = DockStyle.Fill, Visible = false };

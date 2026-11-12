@@ -251,6 +251,7 @@ namespace WinCalendar
         internal void SetUpcoming(IEnumerable<CalendarEvent> events, bool available)
         {
             upcomingEvents = events.ToList(); canSnooze = available; RenderUpcoming();
+            eventsList.RefreshTimeState();
         }
         private void RenderUpcoming()
         {
