@@ -315,7 +315,7 @@ namespace WinCalendar
             DateTimeOffset now = eventsList.Clock();
             nextEnd = viewData.Events.Where(e => preferences.Includes(e) && e.ReminderEnd > now).Select(e => (DateTimeOffset?)e.ReminderEnd).Min();
             heading.Text = settingsVisible ? "Настройки" : State.Today.ToString("d MMMM", DateText.Russian);
-            weekday.Text = settingsVisible ? "WinCalendar" : DateText.Russian.TextInfo.ToTitleCase(State.Today.ToString("dddd", DateText.Russian));
+            weekday.Text = settingsVisible ? "WinCalendar · " + typeof(CalendarPanel).Assembly.GetName().Version.ToString(3) : DateText.Russian.TextInfo.ToTitleCase(State.Today.ToString("dddd", DateText.Russian));
             month.Text = DateText.Russian.TextInfo.ToTitleCase(State.Month.ToString("MMMM yyyy", DateText.Russian));
             previous.Enabled = State.Month > CalendarState.Minimum;
             next.Enabled = State.Month < new DateTime(9998, 12, 1);

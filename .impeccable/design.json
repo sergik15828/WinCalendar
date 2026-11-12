@@ -370,7 +370,8 @@
       "reminders": "Non-activating, click-through layered overlay kept above Explorer; Google popup rules; current-user DPAPI pending and snoozed-batch state; independent new notifications; three local sounds, volume/mute, quiet hours and pulse levels; no ICO rewrite.",
       "taskbarTip": "Optional 650ms pointer dwell over the pin; 360 × 64 logical-pixel non-activating click-through Form above the taskbar. Hide off-pin or when calendar opens; private mode masks title.",
       "preferences": "Three inline tabs: calendars/source-color overrides; sound/volume/quiet hours; privacy/pulse/taskbar tip. DPAPI local storage, Save applies and Back discards the draft. Google remains read-only.",
-      "agenda": "0.6.3: only ongoing/future events with end > local clock appear in day/week lists, counts and dots. Remove completed entries at the next-end deadline via the per-second background tick, without API wait. Healthy confirmed empty today shows exactly На сегодня митов больше нет, приятного вечера; error/loading/hidden-calendar states retain precedence. Calendar-symbol button 32×32 at (560,16), accessible Google Calendar browser action; next label (24,328), 296×18, 12px below grid and 8px extra left inset. Meet and wheel behavior retained."
+      "agenda": "0.6.3: only ongoing/future events with end > local clock appear in day/week lists, counts and dots. Remove completed entries at the next-end deadline via the per-second background tick, without API wait. Healthy confirmed empty today shows exactly На сегодня митов больше нет, приятного вечера; error/loading/hidden-calendar states retain precedence. Calendar-symbol button 32×32 at (560,16), accessible Google Calendar browser action; next label (24,328), 296×18, 12px below grid and 8px extra left inset. Meet and wheel behavior retained.",
+      "settingsVersion": "Settings-only subtitle: WinCalendar · followed by typeof(CalendarPanel).Assembly.GetName().Version.ToString(3), showing major.minor.build (current 0.6.4). Calendar weekday subtitle, geometry and styling are unchanged."
     },
     "verification": {
       "tests": "artifacts/self-test.txt — all 323 native checks pass",
@@ -416,7 +417,8 @@
         "wheelBackTop": 0,
         "todayEveningMessageVisible": true,
         "verified": "Probe exit 0. Week switching and scrolling both ways retain the same window; return to day view shows the exact evening message; final flyout hidden. No personal event text logged. Current source passes all 323 checks; fresh remaining-agenda finish review ship with no material fixes."
-      }
+      },
+      "settingsVersion": "0.6.4 label-only extension: all 323 checks pass. Implementer and fresh reviewer opened six current calendar-settings light/dark captures at 96/120/144 DPI; version label unclipped, review verdict ship. Prior native installation and feature evidence retain their stated versions and scope."
     }
   },
   "components": [

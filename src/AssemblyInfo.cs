@@ -4,5 +4,5 @@ using System.Reflection;
 [assembly: AssemblyDescription("День недели и число в панели задач")]
 [assembly: AssemblyCompany("WinCalendar")]
 [assembly: AssemblyProduct("WinCalendar Date Indicator")]
-[assembly: AssemblyVersion("0.6.3.0")]
-[assembly: AssemblyFileVersion("0.6.3.0")]
+[assembly: AssemblyVersion("0.6.4.0")]
+[assembly: AssemblyFileVersion("0.6.4.0")]
