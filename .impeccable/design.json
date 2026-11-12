@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-12T16:46:11.707704+00:00",
+  "generatedAt": "2026-11-12T17:57:11.307412+00:00",
   "title": "Design System: WinCalendar",
   "extensions": {
     "colorMeta": {
@@ -371,7 +371,8 @@
       "taskbarTip": "Optional 650ms pointer dwell over the pin; 360 × 64 logical-pixel non-activating click-through Form above the taskbar. Hide off-pin or when calendar opens; private mode masks title.",
       "preferences": "Three inline tabs: calendars/source-color overrides; sound/volume/quiet hours; privacy/pulse/taskbar tip. DPAPI local storage, Save applies and Back discards the draft. Google remains read-only.",
       "agenda": "0.6.3: only ongoing/future events with end > local clock appear in day/week lists, counts and dots. Remove completed entries at the next-end deadline via the per-second background tick, without API wait. Healthy confirmed empty today shows exactly На сегодня митов больше нет, приятного вечера; error/loading/hidden-calendar states retain precedence. Calendar-symbol button 32×32 at (560,16), accessible Google Calendar browser action; next label (24,328), 296×18, 12px below grid and 8px extra left inset. Meet and wheel behavior retained.",
-      "settingsVersion": "Settings-only subtitle: WinCalendar · followed by typeof(CalendarPanel).Assembly.GetName().Version.ToString(3), showing major.minor.build (current 0.6.4). Calendar weekday subtitle, geometry and styling are unchanged."
+      "settingsVersion": "Settings-only subtitle: WinCalendar · followed by typeof(CalendarPanel).Assembly.GetName().Version.ToString(3), showing major.minor.build (current 0.6.4). Calendar weekday subtitle, geometry and styling are unchanged.",
+      "weatherPrototype": "Branch-only0.7.0; stable main0.6.4 preserved. Opt-in160×44 layered NOACTIVATE TOOLWINDOW date beside weather. Full-color authored paper25×27 at12,9, warmwhite #FFFCFA, rounded4, red8px header #C42B36, silver bindings #E1E3E8, 2×3 grid with one redcell, no numeral inicon; maintext contains the only date; date14px Segoe UI Semibold face/nativeRegular at y6/weekday12px secondary at y22, closer lines; x46 and widths unchanged. Alpha1 rounded hit interior, alpha22 hover, transparent exterior; separate pulse click-through. Exact shell IDs only, no titles/names. Placement2s, exposure500ms; safe transient cache<3s, missing weather retained only unchangedbar/nooverlap, confirmedcrowding hides immediately; missing transitions may wait roughly4s. No background paint; immediate/queued noactivate raise on ownpopup visibility/activation/click; 50ms checks1s afterclick. Opt-inflag/on-off/oldpin unchanged."
     },
     "verification": {
       "tests": "artifacts/self-test.txt — all 323 native checks pass",
@@ -418,7 +419,13 @@
         "todayEveningMessageVisible": true,
         "verified": "Probe exit 0. Week switching and scrolling both ways retain the same window; return to day view shows the exact evening message; final flyout hidden. No personal event text logged. Current source passes all 323 checks; fresh remaining-agenda finish review ship with no material fixes."
       },
-      "settingsVersion": "0.6.4 label-only extension: all 323 checks pass. Implementer and fresh reviewer opened six current calendar-settings light/dark captures at 96/120/144 DPI; version label unclipped, review verdict ship. Prior native installation and feature evidence retain their stated versions and scope."
+      "settingsVersion": "0.6.4 label-only extension: all 323 checks pass. Implementer and fresh reviewer opened six current calendar-settings light/dark captures at 96/120/144 DPI; version label unclipped, review verdict ship. Prior native installation and feature evidence retain their stated versions and scope.",
+      "weatherPrototype": {
+        "tests": "331 checks pass",
+        "renders": "All331checks pass after final Segoe UI Semibold and closer-line spacing changes. All12 regenerated weather-widget light/dark rest/hover96/120/144 own-renderer fixtures on nominal backgrounds independently reopened by implementer and fresh reviewer. Latest verdict ship, no material fixes, collisions or clipping. Installed build matches final renderer. No desktop captures.",
+        "native": "Preceding wide own-window message probe before final renderer-only font/spacing edits; unchanged window logic, not a fresh native recheck after font changes. Date204,1022,200×55; pulse203,1019,60×60; noappbutton/noactivation; sharedpulse/clickack/open/repeatclose; finalcalendarhidden. StableAfterOpenAndClose=True:50ms visibility polls for2.5s afteropen and2.5s afterclose, hide-counter baseline beforeclick, nohidden transitions. No pixel z-order or operating-system flicker guarantee.",
+        "limits": "Earlier square Explorer startup verified flag persistence; current wide restart not repeated. Computer-use desktop capture failed sandbox URI. Actual desktop appearance, physical mouse, pixel occlusion/z-order, fullscreen/autohide transitions and mixed monitors unverified. Retention eligibility checks age<3s on2s locator cadence, not hard3s visibility maximum. Current full-color/stability review ship, no material fixes."
+      }
     }
   },
   "components": [
@@ -494,6 +501,13 @@
       "description": "Portable static preview of the optional native tip after 650ms dwell. Production uses a click-through, non-activating Form; private mode replaces the title with Занято.",
       "html": "<div class=\"ds-next-tip\" role=\"status\">Через 12 мин · Планирование недели — синтетический пример</div>",
       "css": ".ds-next-tip{width:336px;min-height:48px;padding:8px 12px;background:#FFFFFF;color:#202020;font:9.5pt \"Segoe UI\",sans-serif;overflow:hidden;text-overflow:ellipsis;pointer-events:none}"
+    },
+    {
+      "name": "Weather date prototype — branch only",
+      "kind": "custom",
+      "description": "Current branch0.7.0 full-color160×44 native widget preview with redheader/warmwhitepaper/silverbindings and a2×3grid with one redcell; no numeral inicon, date appears only in maintext and unchanged date/weekday text. Nominal dark background illustrative; production native noactivate layeredwindow. Own-window stability monitoring is not pixel-level z-order proof.",
+      "html": "<div class=\"ds-weather-stage\"><button class=\"ds-weather-date\" aria-label=\"четверг, 12 ноября 2026 — открыть WinCalendar\"><svg width=\"40\" height=\"44\" viewBox=\"0 0 40 44\" aria-hidden=\"true\"><defs><clipPath id=\"ds-weather-page\"><rect x=\"12\" y=\"9\" width=\"25\" height=\"27\" rx=\"4\"/></clipPath></defs><rect x=\"12\" y=\"9\" width=\"25\" height=\"27\" rx=\"4\" fill=\"#FFFCFA\" stroke=\"#F5F5F5\" stroke-opacity=\".33\" stroke-width=\".75\"/><path d=\"M12 9h25v8H12z\" clip-path=\"url(#ds-weather-page)\" fill=\"#C42B36\"/><path d=\"M19 7v5M30 7v5\" stroke=\"#E1E3E8\" stroke-width=\"1.8\" stroke-linecap=\"round\"/><path fill=\"#989BA4\" d=\"M17 22h3v3h-3zM27 22h3v3h-3zM17 28h3v3h-3zM22 28h3v3h-3zM27 28h3v3h-3z\"/><path fill=\"#C42B36\" d=\"M22 22h3v3h-3z\"/></svg><b>12 ноября</b><span>четверг</span></button></div>",
+      "css": ".ds-weather-stage{width:176px;padding:8px;background:#202020}.ds-weather-date{position:relative;width:160px;height:44px;border:0;border-radius:6px;padding:0;background:rgba(245,245,245,.00392);color:#F5F5F5;font-family:\"Segoe UI\",sans-serif;text-align:left;cursor:pointer}.ds-weather-date svg{position:absolute;left:0;top:0}.ds-weather-date b{position:absolute;left:46px;top:6px;right:8px;height:20px;font-family:\"Segoe UI Semibold\",\"Segoe UI\",sans-serif;font-size:14px;font-weight:600;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-weather-date span{position:absolute;left:46px;top:22px;right:8px;font-size:12px;line-height:16px;color:#BDBDBD}.ds-weather-date:hover,.ds-weather-date:active{background:rgba(245,245,245,.08627)}.ds-weather-date:focus-visible{outline:1px dotted #F5F5F5;outline-offset:-3px}@media(forced-colors:active){.ds-weather-date{background:Canvas;color:CanvasText}.ds-weather-date span{color:CanvasText}}"
     }
   ],
   "narrative": {

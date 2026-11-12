@@ -94,7 +94,7 @@ namespace WinCalendar
             Point at = new Point(pin.Left + pin.Width / 2 - size / 2, pin.Top + pin.Height / 2 - size / 2);
             using (Bitmap bitmap = DrawFrame(size, motion ? clock.Elapsed.TotalMilliseconds % 1800 / 1800 : 0.35, Preferences.PulseStrength))
             {
-                if (!Present(bitmap, at)) { Hide(); return; }
+                if (!Present(Handle, bitmap, at)) { Hide(); return; }
             }
             if (!Visible) Show();
             // Explorer raises the taskbar again during hover and activation.
@@ -133,7 +133,7 @@ namespace WinCalendar
             path.AddArc(x + width - d, y + height - d, d, d, 0, 90); path.AddArc(x, y + height - d, d, d, 90, 90); path.CloseFigure(); return path;
         }
 
-        private bool Present(Bitmap bitmap, Point at)
+        internal static bool Present(IntPtr window, Bitmap bitmap, Point at)
         {
             IntPtr screen = GetDC(IntPtr.Zero), memory = CreateCompatibleDC(screen), image = IntPtr.Zero, previous = IntPtr.Zero;
             try
@@ -142,7 +142,7 @@ namespace WinCalendar
                 NativePoint position = new NativePoint { X = at.X, Y = at.Y }, source = new NativePoint();
                 NativeSize size = new NativeSize { Width = bitmap.Width, Height = bitmap.Height };
                 Blend blend = new Blend { Operation = 0, Alpha = 255, Format = 1 };
-                return UpdateLayeredWindow(Handle, screen, ref position, ref size, memory, ref source, 0, ref blend, 2);
+                return UpdateLayeredWindow(window, screen, ref position, ref size, memory, ref source, 0, ref blend, 2);
             }
             finally
             {

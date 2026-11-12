@@ -13,7 +13,8 @@ namespace WinCalendar
         private static Rectangle cached;
         private static Task<Rectangle> pending;
         private static DateTime checkedAt;
-        internal static Rectangle Current { get { lock (Gate) return cached; } }
+        internal static Rectangle Prototype;
+        internal static Rectangle Current { get { lock (Gate) return Prototype.IsEmpty ? cached : Prototype; } }
 
         internal static Task<Rectangle> RefreshAsync()
         {

@@ -21,6 +21,7 @@ namespace WinCalendar
         internal const int GoogleConnectCommand = 7;
         internal const int PreviewReminderCommand = 8;
         internal const int PreferencesCommand = 9;
+        internal const int WeatherOnCommand = 10, WeatherOffCommand = 11;
         internal const string GoogleCalendarUrl = "https://calendar.google.com/calendar/";
 
         [STAThread]
@@ -34,6 +35,7 @@ namespace WinCalendar
                     return 0;
                 }
                 if (args.Length == 2 && args[0] == "--self-test") return SelfTest.Run(args[1]);
+                if (args.Length == 2 && args[0] == "--weather-probe") return WeatherInstalledProbe.Run(args[1]);
                 int command = GetLaunchCommand(args.Length == 0 ? null : args[0]);
                 if (args.Length > 1 || command < 0)
                 {
@@ -51,6 +53,8 @@ namespace WinCalendar
                     try
                     {
                         if (command == ExitCommand) return 0;
+                        if (command == WeatherOnCommand || command == WeatherOffCommand)
+                            WeatherDateWindow.IsEnabled = command == WeatherOnCommand;
                         if (command == StartupOnCommand || command == StartupOffCommand)
                             ShellIntegration.StartsWithWindows = command == StartupOnCommand;
                         ShellIntegration.EnsureAppShortcut();
@@ -92,6 +96,8 @@ namespace WinCalendar
             if (argument == "--google-connect") return GoogleConnectCommand;
             if (argument == "--preview-reminder") return PreviewReminderCommand;
             if (argument == "--preferences") return PreferencesCommand;
+            if (argument == "--weather-on") return WeatherOnCommand;
+            if (argument == "--weather-off") return WeatherOffCommand;
             return -1;
         }
 

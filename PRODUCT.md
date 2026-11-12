@@ -51,6 +51,12 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Header Google Calendar navigation uses an authored calendar icon beside the settings gear and close icon. It opens the site and dismisses the flyout without exiting the updater. The next-meeting line starts 12 logical pixels below the month grid with an additional left inset.
 - Agenda scrolling accumulates precision-wheel deltas, batches native redraw and works under the pointer without moving keyboard focus. Preserve card hit boundaries, tooltip stability and scroll position during unchanged refreshes.
 
+## Branch-only weather date mode — 0.7.0
+
+The codex/weather-date-prototype branch adds an opt-in 160 × 44 logical-pixel date button beside weather on the primary horizontal Windows taskbar. Stable main remains 0.6.4; the original pinned weekday/day icon is retained as a backup. Render a full-color authored calendar with warm-white paper, red header, silver bindings and a 2 × 3 grid with one red cell, plus two lines of Russian date/weekday text in the existing Segoe UI and theme palette. Use a non-activating layered tool window with a transparent clickable rounded interior and restrained hover fill.
+
+Exact shell AutomationIds locate weather without reading application titles or accessible names; hide when weather/space/taskbar exposure is unavailable. Do not change Explorer, system widgets or taskbar settings. Click acknowledges reminders and toggles the existing calendar; Google reads, OAuth, sound and snooze remain shared. A nonsecret local flag persists --weather-on/off; installed Enable/DisableWeatherPrototype.cmd commands enable and roll back this mode. Clean installs default off. Prototype evidence and unverified platform cases are recorded separately in WEATHER_PROTOTYPE.md and DESIGN.md.
+
 ## Brand commitments
 
 The macOS reference concerns the date icon. The user now prefers a large two-letter weekday instead of the month above the day number. Preserve readability at taskbar icon sizes.

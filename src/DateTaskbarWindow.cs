@@ -20,6 +20,7 @@ namespace WinCalendar
         private Icon smallIcon;
         private bool retryIcon;
         private CalendarPopup calendar;
+        private WeatherDateWindow weatherDate;
         internal DateTime CurrentDate { get; private set; }
         internal CalendarPopup Calendar { get { return calendar; } }
 
@@ -51,6 +52,10 @@ namespace WinCalendar
             RefreshDate(true);
             calendar = new CalendarPopup(now, Program.OpenGoogleCalendar, integrateWithShell);
             calendar.ExitRequested += delegate { Close(); };
+            if (integrateWithShell) weatherDate = new WeatherDateWindow(now, ToggleCalendar);
+            calendar.ViewWindow.Activated += delegate { if (weatherDate != null) weatherDate.KeepAboveTaskbar(); };
+            calendar.ViewWindow.VisibleChanged += delegate
+            { if (weatherDate != null && weatherDate.IsHandleCreated && !weatherDate.IsDisposed) weatherDate.BeginInvoke(new Action(weatherDate.KeepAboveTaskbar)); };
             if (integrateWithShell)
             {
                 SystemEvents.TimeChanged += OnTimeChanged;
@@ -157,6 +162,8 @@ namespace WinCalendar
                 else if (command == Program.PreviewReminderCommand && integrateWithShell) calendar.PreviewReminder();
                 else if (command == Program.PreferencesCommand && integrateWithShell) calendar.OpenPreferences();
                 else if (command == Program.OpenCalendarCommand && integrateWithShell) ToggleCalendar();
+                else if ((command == Program.WeatherOnCommand || command == Program.WeatherOffCommand) && integrateWithShell)
+                { WeatherDateWindow.IsEnabled = command == Program.WeatherOnCommand; weatherDate.RefreshPlacement(); }
                 else RefreshDate(false);
                 return;
             }
@@ -182,6 +189,7 @@ namespace WinCalendar
             timer.Stop();
             timer.Dispose();
             calendar.Dispose();
+            if (weatherDate != null) weatherDate.Dispose();
             if (ownedIcon != null) ownedIcon.Dispose();
             if (smallIcon != null) smallIcon.Dispose();
             if (integrateWithShell)
