@@ -444,7 +444,7 @@
         "renders": "artifacts/settings-tabs-{ru,en}-{light,dark}-{96,120,144}.png —12freshcontact sheets, five pages vertically each; all independently opened.",
         "tests": "Final compactbuild after keyboardfix366PASS; ProcessCmdKey keyboardrouting and explicitTabIndex reviewed.",
         "review": "Fresh compact_tabs_finish_review SHIP: all12fixtures and final keyboard source.",
-        "native": "Exactfinalkeyboardfixedbinary passes fullnativeprobe after normalExplorerrestart: animationadvanced/clickack/openclosestable/UnifiedPreferencesSameWindow=True/finalhidden; persistedwidgetflag acrossnormalrestart PASS. Earlierfirstcompactprobe alsoPASS.",
+        "native": "Exactfinalkeyboardfixedbinary passes fullnativeprobe after normalExplorerrestart: animationadvanced/clickack/openclosestable/UnifiedPreferencesSameWindow=True/finalhidden; persistedwidgetflag acrossnormalrestart PASS. Earlierfirstcompactprobe alsoPASS. Followup afterlaunchscriptexit: InstalledRunning=1, InstalledMatchesBuild=True.",
         "limits": "Earlier exactfinalinstallattempt failed secondclickclose, nextprobe foundnohost. SubsequentnormalExplorerrestartPASS doesnot establishrootcause or stabilityofeverylaunchpath. Ownwindowproof remainsnotphysicalmouse/pixelartifactverification."
       }
     }
