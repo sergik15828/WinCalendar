@@ -18,6 +18,7 @@ namespace WinCalendar
         private readonly GoogleCalendarClient google;
         private readonly CalendarSync sync;
         private readonly bool shell;
+        private int visibilityRevision;
         private readonly System.Windows.Forms.Timer refreshTimer, closeTimer;
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
         private CancellationTokenSource login;
@@ -60,15 +61,17 @@ namespace WinCalendar
             {
                 // Tooltip creation can temporarily change activation. Inspect
                 // the settled foreground window before dismissing the flyout.
+                int revision = visibilityRevision;
                 window.BeginInvoke(new Action(delegate
                 {
-                    if (disposed || !window.Visible) return;
+                    if (disposed || !window.Visible || revision != visibilityRevision) return;
                     uint process; GetWindowThreadProcessId(GetForegroundWindow(), out process);
                     if (process == (uint)System.Diagnostics.Process.GetCurrentProcess().Id) return;
                     if (anchorArea.Contains(Cursor.Position) && (Control.MouseButtons & MouseButtons.Left) != 0) closeTimer.Start();
                     else Hide();
                 }));
             };
+            window.Activated += delegate { visibilityRevision++; closeTimer.Stop(); };
             window.VisibleChanged += delegate
             {
                 if (window.Visible) refreshTimer.Start(); else { refreshTimer.Stop(); closeTimer.Stop(); }
@@ -108,7 +111,7 @@ namespace WinCalendar
         internal async void ShowAt(Point anchor, Rectangle work)
         {
             if (disposed) return;
-            closeTimer.Stop();
+            visibilityRevision++; closeTimer.Stop();
             Rectangle pin = shell ? TaskbarAnchor.Current : Rectangle.Empty;
             if (!pin.IsEmpty) { anchor = new Point(pin.Left + pin.Width / 2, pin.Top + pin.Height / 2); work = Screen.FromRectangle(pin).WorkingArea; }
             anchorArea = pin.IsEmpty ? new Rectangle(anchor.X - 28, anchor.Y - 28, 56, 56) : pin;
@@ -136,7 +139,7 @@ namespace WinCalendar
         }
 
         internal void UpdateToday(DateTime today) { Panel.UpdateToday(today); }
-        internal void Hide() { closeTimer.Stop(); window.Hide(); }
+        internal void Hide() { visibilityRevision++; closeTimer.Stop(); window.Hide(); }
 
         internal void ShowCalendarSettings()
         {

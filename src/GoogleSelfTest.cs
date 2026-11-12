@@ -257,15 +257,24 @@ namespace WinCalendar
                     Events = new List<CalendarEvent> { new CalendarEvent { Id = "hover-fixture", Title = "Синтетическая встреча для проверки подсказки", AllDay = true,
                         Start = "2026-11-12", End = "2026-11-13", Url = "https://calendar.google.com/calendar/event?eid=hover-fixture" } } });
                 CalendarEventList list = popup.Panel.EventList;
-                bool tipShown = false;
+                bool tipShown = false; int tipCount = 0;
                 var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
                 ToolTip tip = (ToolTip)typeof(CalendarEventList).GetField("tooltip", flags).GetValue(list);
-                tip.Popup += delegate { tipShown = true; };
+                tip.Popup += delegate { tipShown = true; tipCount++; };
                 var move = typeof(CalendarEventList).GetMethod("OnMouseMove", flags);
                 move.Invoke(list, new object[] { new MouseEventArgs(MouseButtons.None, 0, list.Width / 2, 30, 0) });
                 for (int attempt = 0; attempt < 25 && !tipShown; attempt++) await Task.Delay(100);
                 check(tipShown && popup.Visible && list.Cursor == Cursors.Hand,
                     "Native meeting tooltip appears without dismissing calendar or losing card hover");
+                int redraws = 0;
+                InvalidateEventHandler trackRedraw = delegate { redraws++; };
+                list.Invalidated += trackRedraw;
+                for (int x = list.Width / 2; x < list.Width / 2 + 20; x++)
+                    move.Invoke(list, new object[] { new MouseEventArgs(MouseButtons.None, 0, x, 30, 0) });
+                list.Invalidated -= trackRedraw;
+                await Task.Delay(750);
+                check(redraws == 0 && tipCount == 1 && popup.Visible,
+                    "Moving within a meeting does not repaint the list or restart its visible tooltip");
                 move.Invoke(list, new object[] { new MouseEventArgs(MouseButtons.None, 0, list.Width / 2, 0, 0) });
                 check(list.Cursor == Cursors.Default && list.HitCard(new Point(list.Width / 2, 0)) == -1,
                     "Pointer leaves the card in a row gap without keeping its clickable cursor");
@@ -320,6 +329,22 @@ namespace WinCalendar
                     using (Bitmap bitmap = new Bitmap(popup.Panel.Width, popup.Panel.Height))
                     {
                         popup.Panel.DrawToBitmap(bitmap, popup.Panel.ClientRectangle);
+                        for (int row = 0; row < 3; row++)
+                        {
+                            Rectangle item = popup.Panel.EventList.GetItemRectangle(row);
+                            int scale = dpi;
+                            Rectangle titleArea = new Rectangle(popup.Panel.EventList.Left + 14 * scale / 96,
+                                popup.Panel.EventList.Top + item.Top + 30 * scale / 96, 270 * scale / 96, 33 * scale / 96);
+                            Color ink = CalendarPalette.Create(dark).Ink;
+                            int inkPixels = 0;
+                            for (int y = titleArea.Top; y < titleArea.Bottom; y++)
+                            for (int x = titleArea.Left; x < titleArea.Right; x++)
+                            {
+                                Color pixel = bitmap.GetPixel(x, y);
+                                if (Math.Abs(pixel.R - ink.R) < 35 && Math.Abs(pixel.G - ink.G) < 35 && Math.Abs(pixel.B - ink.B) < 35) inkPixels++;
+                            }
+                            check(inkPixels > 20, "Buffered meeting title remains visible in row " + row + " at " + dpi + " DPI, dark=" + dark);
+                        }
                         bitmap.Save(Path.Combine(directory, "google-events-" + (dark ? "dark" : "light") + "-" + dpi + ".png"), ImageFormat.Png);
                     }
                     check(popup.Panel.Controls.Cast<Control>().All(c => popup.Panel.ClientRectangle.Contains(c.Bounds)), "Events panel controls fit at " + dpi + " DPI in " + (dark ? "dark" : "light"));

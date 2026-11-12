@@ -19,6 +19,7 @@ namespace WinCalendar
 
         private readonly Timer tooltipDelay = new Timer { Interval = 650 };
         private Point pointer;
+        private bool tooltipVisible;
 
         internal CalendarEventList()
         {
@@ -29,6 +30,7 @@ namespace WinCalendar
             {
                 tooltipDelay.Stop();
                 if (hovered < 0 || !Visible || HitCard(pointer) != hovered) return;
+                tooltipVisible = true;
                 tooltip.Show(Items[hovered].ToString(), this, pointer.X + Pixels(16), pointer.Y + Pixels(24), 8000);
             };
         }
@@ -45,14 +47,27 @@ namespace WinCalendar
                 return path.IsVisible(point) ? index : -1;
         }
 
+        private void HideTooltip()
+        {
+            if (!tooltipVisible) return;
+            tooltipVisible = false; tooltip.Hide(this);
+        }
+
+        private void InvalidateCard(int index)
+        {
+            if (index >= 0 && index < Items.Count) Invalidate(GetItemRectangle(index));
+        }
+
         protected override void OnMouseMove(MouseEventArgs args)
         {
             int index = HitCard(args.Location);
             Cursor = index >= 0 && CalendarPage.SafeGoogleLink(((EventRow)Items[index]).Event.Url) != null ? Cursors.Hand : Cursors.Default;
-            if (hovered != index || pointer != args.Location)
+            pointer = args.Location;
+            if (hovered != index)
             {
-                tooltipDelay.Stop(); tooltip.Hide(this);
-                hovered = index; pointer = args.Location; Invalidate();
+                tooltipDelay.Stop(); HideTooltip();
+                int previous = hovered; hovered = index;
+                InvalidateCard(previous); InvalidateCard(index);
                 if (index >= 0) tooltipDelay.Start();
             }
             base.OnMouseMove(args);
@@ -77,7 +92,8 @@ namespace WinCalendar
 
         private void ClearHover()
         {
-            tooltipDelay.Stop(); tooltip.Hide(this); hovered = -1; Cursor = Cursors.Default; Invalidate();
+            tooltipDelay.Stop(); HideTooltip();
+            int previous = hovered; hovered = -1; Cursor = Cursors.Default; InvalidateCard(previous);
         }
 
         internal void SetEvents(IEnumerable<CalendarEvent> events, DateTime day, TimeZoneInfo zone, CalendarPalette colors, int scaleDpi)
@@ -130,6 +146,17 @@ namespace WinCalendar
         protected override void OnDrawItem(DrawItemEventArgs args)
         {
             if (args.Index < 0 || palette == null) return;
+            using (BufferedGraphics buffer = BufferedGraphicsManager.Current.Allocate(args.Graphics, args.Bounds))
+            {
+                buffer.Graphics.ResetTransform();
+                DrawCard(new DrawItemEventArgs(buffer.Graphics, args.Font,
+                    new Rectangle(Point.Empty, args.Bounds.Size), args.Index, args.State));
+                buffer.Render(args.Graphics);
+            }
+        }
+
+        private void DrawCard(DrawItemEventArgs args)
+        {
             EventRow row = (EventRow)Items[args.Index];
             bool selected = (args.State & DrawItemState.Selected) != 0 || args.Index == hovered;
             Color background = selected ? palette.Hover : palette.EventSurface;
