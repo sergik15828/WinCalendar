@@ -36,7 +36,7 @@ namespace WinCalendar
             BackColor = palette.Surface; ForeColor = palette.Ink;
             BeginUpdate(); Items.Clear();
             foreach (CalendarEvent item in events.OrderBy(e => e.SortOrder))
-                Items.Add(new EventRow { Event = item, Time = item.TimeLabel(day, zone) });
+                Items.Add(new EventRow { Event = item, Time = item.TimeLabel(day, zone) + (String.IsNullOrEmpty(item.CalendarName) ? "" : " · " + item.CalendarName) });
             EndUpdate(); Invalidate();
         }
 

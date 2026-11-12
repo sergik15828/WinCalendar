@@ -117,6 +117,7 @@ namespace WinCalendar
         }
 
         internal async void ConfigureGoogle() { await ConfigureGoogleAsync(); }
+        internal async void ConnectGoogle() { await ConnectAsync(); }
 
         private bool RevealGoogleSetup()
         {

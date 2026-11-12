@@ -23,8 +23,9 @@ The user wants to see today's weekday and day number continuously in the taskbar
 - Keep a minimized native host alive for the taskbar button and automatic date updates.
 - The user pins and reorders the application using Windows itself.
 - Calendar supports month navigation, Monday-first weeks, today and selected-day highlights, and a Today button. Selection does not change the taskbar date.
-- A button in the panel opens Google Calendar in the default browser. Optional Google authorization reads one account's primary calendar; date dots and a selected-day list expose meetings and their browser links.
-- Use Desktop OAuth, PKCE, loopback callback, and calendar.events.readonly. Store client credentials and refresh session in Windows Credential Manager, access tokens in memory, and event snapshots with current-user DPAPI encryption. Users create their own Google Cloud Desktop client.
+- A button in the panel opens Google Calendar in the default browser. Optional Google authorization reads the primary and additional readable calendars of one account; hidden/deleted and free-busy-only entries are skipped. Date dots and a selected-day list expose meetings, their source calendar and browser links. Browser display checkboxes do not limit app loading.
+- Use Desktop OAuth, PKCE, loopback callback, calendar.events.readonly and calendar.calendarlist.readonly. An older event-only grant requires renewed consent without re-entering the Desktop client. Store client credentials and refresh session in Windows Credential Manager, access tokens in memory, and event snapshots with current-user DPAPI encryption. Users create their own Google Cloud Desktop client.
+- Read calendar-list and event pagination, keep event IDs distinct per source calendar, and invalidate the former primary-only cache. A missing permission or failed refresh must not be presented as a verified empty day.
 - Render loading, empty, offline with cached events and update time, and renewed-sign-in states. Refresh asynchronously; stale month or account responses cannot replace the current view.
 - Escape, outside click, or another icon click closes the panel. Its native tool-window style must not add a running-app indicator.
 - Startup and Exit remain available through Settings.cmd and the Start menu settings shortcut.

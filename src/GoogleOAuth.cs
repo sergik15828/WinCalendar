@@ -36,7 +36,7 @@ namespace WinCalendar
         internal static string AuthorizationUrl(string id, string redirect, string state, string verifier)
         {
             Dictionary<string, string> fields = new Dictionary<string, string> { { "client_id", id }, { "redirect_uri", redirect },
-                { "response_type", "code" }, { "scope", GoogleCalendarClient.Scope }, { "state", state },
+                { "response_type", "code" }, { "scope", GoogleCalendarClient.AuthorizationScopes }, { "state", state },
                 { "code_challenge", Challenge(verifier) }, { "code_challenge_method", "S256" },
                 { "access_type", "offline" }, { "prompt", "consent select_account" } };
             StringBuilder url = new StringBuilder("https://accounts.google.com/o/oauth2/v2/auth?");

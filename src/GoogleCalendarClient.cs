@@ -26,6 +26,8 @@ namespace WinCalendar
     internal sealed class GoogleCalendarClient : ICalendarSource, IDisposable
     {
         internal const string Scope = "https://www.googleapis.com/auth/calendar.events.readonly";
+        internal const string CalendarListScope = "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
+        internal const string AuthorizationScopes = Scope + " " + CalendarListScope;
         private const string ClientCredential = "WinCalendar/Google/DesktopClient";
         private const string SessionCredential = "WinCalendar/Google/Session";
         private readonly ICredentialStore credentials;
@@ -36,7 +38,7 @@ namespace WinCalendar
         private bool needsLogin;
         internal bool Configured { get { return !String.IsNullOrEmpty(clientId); } }
         public bool Connected { get { return !String.IsNullOrEmpty(refreshToken) && !needsLogin; } }
-        public string CacheIdentity { get { return cacheIdentity; } }
+        public string CacheIdentity { get { return cacheIdentity == null ? null : cacheIdentity + ":all-calendars-v1"; } }
 
         internal GoogleCalendarClient(ICredentialStore store) : this(store, new HttpClientHandler { AllowAutoRedirect = false }) { }
         internal GoogleCalendarClient(ICredentialStore store, HttpMessageHandler handler)
@@ -138,7 +140,11 @@ namespace WinCalendar
                 }
                 Dictionary<string, object> result = Json.Object(body);
                 string granted = Json.Text(result, "scope");
-                if (granted != null && !granted.Split(' ').Contains(Scope)) throw new GoogleFailure("Разрешение на чтение календаря не выдано. Повторите вход.", true);
+                if (granted != null && !HasRequiredScopes(granted))
+                {
+                    needsLogin = true;
+                    throw new GoogleFailure("Нужно разрешение на список календарей. Нажмите «Войти в Google» и подтвердите доступ.", true);
+                }
                 return result;
             }
         }
@@ -174,9 +180,16 @@ namespace WinCalendar
             finally { tokenLock.Release(); }
         }
 
-        internal static string EventsUrl(DateTime first, DateTime end, TimeZoneInfo zone, string page)
+        internal static bool HasRequiredScopes(string granted)
         {
-            string url = "https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&showDeleted=false&maxResults=250&timeZone=UTC"
+            HashSet<string> scopes = new HashSet<string>(granted.Split(' '));
+            bool all = scopes.Contains("https://www.googleapis.com/auth/calendar") || scopes.Contains("https://www.googleapis.com/auth/calendar.readonly");
+            return all || (scopes.Contains(Scope) && scopes.Contains(CalendarListScope));
+        }
+
+        internal static string EventsUrl(DateTime first, DateTime end, TimeZoneInfo zone, string page, string calendarId = "primary")
+        {
+            string url = "https://www.googleapis.com/calendar/v3/calendars/" + Uri.EscapeDataString(calendarId) + "/events?singleEvents=true&orderBy=startTime&showDeleted=false&maxResults=250&timeZone=UTC"
                 + "&timeMin=" + Uri.EscapeDataString(CalendarEvent.Boundary(first, zone).ToString("o", CultureInfo.InvariantCulture))
                 + "&timeMax=" + Uri.EscapeDataString(CalendarEvent.Boundary(end, zone).ToString("o", CultureInfo.InvariantCulture))
                 + "&fields=" + Uri.EscapeDataString("nextPageToken,items(id,status,summary,htmlLink,start,end)");
@@ -187,35 +200,75 @@ namespace WinCalendar
         public async Task<List<CalendarEvent>> LoadAsync(DateTime first, DateTime end, TimeZoneInfo zone, CancellationToken cancellation)
         {
             List<CalendarEvent> events = new List<CalendarEvent>();
+            List<GoogleCalendarEntry> calendars = await ListCalendarsAsync(cancellation).ConfigureAwait(false);
+            foreach (GoogleCalendarEntry calendar in calendars)
+            {
+                List<CalendarEvent> items = await LoadCalendarAsync(calendar.Id, first, end, zone, cancellation).ConfigureAwait(false);
+                foreach (CalendarEvent item in items) { item.CalendarId = calendar.Id; item.CalendarName = calendar.Name; }
+                events.AddRange(items);
+            }
+            return events.GroupBy(e => new { e.CalendarId, Key = e.Id ?? e.Start + e.Title }).Select(group => group.First()).ToList();
+        }
+
+        internal async Task<List<GoogleCalendarEntry>> ListCalendarsAsync(CancellationToken cancellation)
+        {
+            List<GoogleCalendarEntry> calendars = new List<GoogleCalendarEntry>();
+            HashSet<string> pages = new HashSet<string>();
+            string page = null;
+            do
+            {
+                string url = "https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=250&showHidden=false&showDeleted=false"
+                    + "&fields=" + Uri.EscapeDataString("nextPageToken,items(id,summary,summaryOverride,accessRole,hidden,deleted)");
+                if (!String.IsNullOrEmpty(page)) url += "&pageToken=" + Uri.EscapeDataString(page);
+                GoogleCalendarList parsed = GoogleCalendarList.Parse(await ReadJsonAsync(url, true, cancellation).ConfigureAwait(false));
+                calendars.AddRange(parsed.Calendars); page = parsed.NextPage;
+                if (!String.IsNullOrEmpty(page) && !pages.Add(page)) throw new GoogleFailure("Не удалось получить полный список календарей. Повторите обновление.", false);
+            } while (!String.IsNullOrEmpty(page));
+            if (calendars.Count == 0) throw new GoogleFailure("Google не вернул доступных календарей. Проверьте аккаунт или войдите снова.", true);
+            return calendars.GroupBy(c => c.Id).Select(group => group.First()).ToList();
+        }
+
+        private async Task<List<CalendarEvent>> LoadCalendarAsync(string calendarId, DateTime first, DateTime end, TimeZoneInfo zone, CancellationToken cancellation)
+        {
+            List<CalendarEvent> events = new List<CalendarEvent>();
             HashSet<string> pages = new HashSet<string>();
             string page = null;
             do
             {
                 cancellation.ThrowIfCancellationRequested();
-                string url = EventsUrl(first, end, zone, page);
-                bool retried = false;
-                while (true)
-                {
-                    string access = await AccessAsync(cancellation).ConfigureAwait(false);
-                    using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
-                    {
-                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", access);
-                        using (HttpResponseMessage response = await http.SendAsync(request, cancellation).ConfigureAwait(false))
-                        {
-                            if (response.StatusCode == HttpStatusCode.Unauthorized && !retried) { accessExpires = DateTime.MinValue; retried = true; continue; }
-                            if (response.StatusCode == HttpStatusCode.Unauthorized) { needsLogin = true; throw new GoogleFailure("Доступ к Google отозван. Войдите снова.", true); }
-                            if (response.StatusCode == HttpStatusCode.Forbidden) throw new GoogleFailure("Google запретил чтение. Проверьте Calendar API и разрешение для аккаунта в Google Cloud.", false);
-                            if ((int)response.StatusCode == 429) throw new GoogleFailure("Google временно ограничил запросы. Обновление повторится позже.", false);
-                            if (!response.IsSuccessStatusCode) throw new GoogleFailure("Google Calendar временно недоступен. Попробуйте позже.", false);
-                            CalendarPage parsed = CalendarPage.Parse(await response.Content.ReadAsStringAsync().ConfigureAwait(false));
-                            events.AddRange(parsed.Events); page = parsed.NextPage;
-                            if (!String.IsNullOrEmpty(page) && !pages.Add(page)) throw new GoogleFailure("Google вернул неполный список. Повторите обновление.", false);
-                            break;
-                        }
-                    }
-                }
+                string url = EventsUrl(first, end, zone, page, calendarId);
+                CalendarPage parsed = CalendarPage.Parse(await ReadJsonAsync(url, false, cancellation).ConfigureAwait(false));
+                events.AddRange(parsed.Events); page = parsed.NextPage;
+                if (!String.IsNullOrEmpty(page) && !pages.Add(page)) throw new GoogleFailure("Google вернул неполный список. Повторите обновление.", false);
             } while (!String.IsNullOrEmpty(page));
             return events.GroupBy(e => e.Id ?? e.Start + e.Title).Select(group => group.First()).ToList();
+        }
+
+        private async Task<string> ReadJsonAsync(string url, bool calendarList, CancellationToken cancellation)
+        {
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                string access = await AccessAsync(cancellation).ConfigureAwait(false);
+                using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", access);
+                    using (HttpResponseMessage response = await http.SendAsync(request, cancellation).ConfigureAwait(false))
+                    {
+                        if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0) { accessExpires = DateTime.MinValue; continue; }
+                        if (response.StatusCode == HttpStatusCode.Unauthorized) { needsLogin = true; throw new GoogleFailure("Доступ к Google отозван. Войдите снова.", true); }
+                        if (response.StatusCode == HttpStatusCode.Forbidden && calendarList)
+                        {
+                            needsLogin = true;
+                            throw new GoogleFailure("Нужно разрешение на список календарей. Нажмите «Войти в Google» и подтвердите доступ.", true);
+                        }
+                        if (response.StatusCode == HttpStatusCode.Forbidden) throw new GoogleFailure("Google запретил чтение одного из календарей. Проверьте разрешения аккаунта.", false);
+                        if ((int)response.StatusCode == 429) throw new GoogleFailure("Google временно ограничил запросы. Обновление повторится позже.", false);
+                        if (!response.IsSuccessStatusCode) throw new GoogleFailure("Google Calendar временно недоступен. Попробуйте позже.", false);
+                        return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    }
+                }
+            }
+            throw new GoogleFailure("Не удалось обновить доступ Google. Войдите снова.", true);
         }
 
         public void Dispose() { http.Dispose(); accessToken = refreshToken = clientSecret = null; }

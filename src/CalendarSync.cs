@@ -12,7 +12,7 @@ namespace WinCalendar
     {
         internal List<CalendarEvent> Events = new List<CalendarEvent>();
         internal string Message;
-        internal bool Loading, HasSnapshot;
+        internal bool Loading, HasSnapshot, LoadError;
         internal DateTime? UpdatedUtc;
         internal CalendarConnection Connection;
     }
@@ -40,6 +40,7 @@ namespace WinCalendar
             Cancel(); int request = generation;
             if (!source.Connected)
             {
+                if (Current.Connection == CalendarConnection.NeedsLogin) { Publish(Current); return; }
                 Publish(new CalendarViewData { Connection = CalendarConnection.Disconnected, Message = "Подключите Google, чтобы видеть встречи." }); return;
             }
             string identity = source.CacheIdentity;
@@ -64,7 +65,11 @@ namespace WinCalendar
             catch (OperationCanceledException)
             {
                 if (!disposed && request == generation && !cancellation.IsCancellationRequested)
-                { retryAfter = DateTime.UtcNow.AddMinutes(2); Publish(FromSnapshot(snapshot, false, "Превышено время ожидания. Повторите обновление.")); }
+                {
+                    retryAfter = DateTime.UtcNow.AddMinutes(2);
+                    CalendarViewData timedOut = FromSnapshot(snapshot, false, "Превышено время ожидания. Повторите обновление.");
+                    timedOut.LoadError = true; Publish(timedOut);
+                }
             }
             catch (Exception error)
             {
@@ -73,6 +78,7 @@ namespace WinCalendar
                 GoogleFailure google = error as GoogleFailure;
                 string message = google != null ? google.Message : error is HttpRequestException ? "Нет связи с Google. Проверьте интернет." : "Не удалось загрузить встречи. Повторите обновление.";
                 CalendarViewData data = FromSnapshot(snapshot, false, message);
+                data.LoadError = true;
                 if (google != null && google.NeedsLogin) data.Connection = CalendarConnection.NeedsLogin;
                 Publish(data);
             }
@@ -83,7 +89,7 @@ namespace WinCalendar
         {
             return new CalendarViewData { Connection = CalendarConnection.Connected, Events = snapshot == null ? new List<CalendarEvent>() : snapshot.Events,
                 HasSnapshot = snapshot != null, UpdatedUtc = snapshot == null ? (DateTime?)null : snapshot.UpdatedUtc, Loading = loading,
-                Message = message ?? (loading ? "Обновление встреч…" : snapshot == null ? "Обновление будет повторено позже." : "Основной календарь Google") };
+                Message = message ?? (loading ? "Обновление встреч…" : snapshot == null ? "Обновление будет повторено позже." : "Календари Google") };
         }
 
         internal void Cancel()

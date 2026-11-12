@@ -230,8 +230,11 @@ namespace WinCalendar
             selectedDate.Text = State.Selected.ToString("d MMMM yyyy", DateText.Russian) + (day.Length == 0 ? "" : " · " + day.Length);
             eventsList.SetEvents(day, State.Selected, TimeZoneInfo.Local, palette, layoutDpi);
             eventsList.Visible = day.Length > 0; emptyEvents.Visible = day.Length == 0;
-            emptyEvents.Text = viewData.Connection == CalendarConnection.Disconnected ? "Подключите основной календарь Google,\nчтобы видеть встречи выбранного дня."
-                : viewData.HasSnapshot ? "На этот день встреч нет." : viewData.Loading ? "Загружаем встречи…" : "Список встреч пока недоступен.";
+            emptyEvents.Text = viewData.Connection == CalendarConnection.Disconnected ? "Подключите календари Google,\nчтобы видеть встречи выбранного дня."
+                : viewData.Connection == CalendarConnection.NeedsLogin ? "Войдите в Google, чтобы проверить встречи\nво всех доступных календарях."
+                : viewData.Loading ? "Проверяем встречи…"
+                : viewData.LoadError ? "Не удалось проверить встречи.\n" + (viewData.HasSnapshot ? "Показаны последние сохранённые данные." : "Список встреч пока недоступен.")
+                : viewData.HasSnapshot ? "На этот день встреч нет." : "Список встреч пока недоступен.";
             syncStatus.Text = viewData.Message;
             updatedStatus.Text = viewData.UpdatedUtc.HasValue ? "Данные: " + viewData.UpdatedUtc.Value.ToLocalTime().ToString("d MMM HH:mm", DateText.Russian) : "";
             bool connected = viewData.Connection == CalendarConnection.Connected, busy = viewData.Connection == CalendarConnection.Busy;

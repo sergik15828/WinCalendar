@@ -163,6 +163,7 @@ namespace WinCalendar
                 }
                 else if (command == Program.MenuCommand && integrateWithShell) ShowMenu();
                 else if (command == Program.GoogleSetupCommand && integrateWithShell) calendar.ConfigureGoogle();
+                else if (command == Program.GoogleConnectCommand && integrateWithShell) calendar.ConnectGoogle();
                 else if (command == Program.OpenCalendarCommand && integrateWithShell) ToggleCalendar();
                 else RefreshDate(false);
                 return;

@@ -25,6 +25,8 @@ namespace WinCalendar
             check(GoogleOAuth.ValidateState("state-fixture", "state-fixture") && !GoogleOAuth.ValidateState("state-fixture", "different") && !GoogleOAuth.ValidateState("state-fixture", null), "OAuth callback rejects wrong or missing state");
             string authorization = Uri.UnescapeDataString(GoogleOAuth.AuthorizationUrl("fixture.apps.googleusercontent.com", "http://127.0.0.1:12345/oauth2/callback", "state-fixture", "verifier-fixture"));
             check(authorization.Contains("code_challenge_method=S256") && authorization.Contains("access_type=offline") && authorization.Contains("calendar.events.readonly") && !authorization.Contains("client_secret"), "Browser authorization requests only calendar read access with PKCE and offline refresh");
+            check(authorization.Contains("calendar.calendarlist.readonly") && GoogleCalendarClient.HasRequiredScopes(GoogleCalendarClient.AuthorizationScopes)
+                && !GoogleCalendarClient.HasRequiredScopes(GoogleCalendarClient.Scope), "Additional calendars require a read-only calendar-list grant and legacy grants need renewed consent");
             Task simulatedBrowser = null;
             bool wrongStateRejected = false, returnPageShown = false;
             string challenge = null;
@@ -83,6 +85,8 @@ namespace WinCalendar
                     check(body.Contains("grant_type=refresh_token") && body.Contains("refresh_token=fixture-refresh"), "Refresh grant stays in the HTTPS request body");
                     return Response(HttpStatusCode.OK, "{\"access_token\":\"fixture-access\",\"expires_in\":3600}");
                 }
+                if (request.RequestUri.AbsolutePath.EndsWith("/calendarList", StringComparison.Ordinal))
+                    return Response(HttpStatusCode.OK, "{\"items\":[{\"id\":\"primary\",\"summary\":\"Synthetic primary\",\"accessRole\":\"owner\"}]}");
                 eventRequests++;
                 check(request.Headers.Authorization != null && request.Headers.Authorization.Scheme == "Bearer", "Calendar API receives bearer access in its header");
                 string url = Uri.UnescapeDataString(request.RequestUri.AbsoluteUri);
@@ -94,8 +98,9 @@ namespace WinCalendar
             {
                 List<CalendarEvent> events = await client.LoadAsync(new DateTime(2026, 10, 26), new DateTime(2026, 12, 7), zone, CancellationToken.None);
                 check(events.Count == 2 && eventRequests == 3 && tokenRequests == 2, "401 refreshes once, then all event pages are loaded");
-                check(client.Connected && client.CacheIdentity == "fixture-account", "Stored refresh session restores without a browser");
+                check(client.Connected && client.CacheIdentity == "fixture-account:all-calendars-v1", "Stored session restores with a separate cache namespace for all calendars");
             }
+            await TestAdditionalCalendarsAsync(check, zone, directory);
             using (GoogleCalendarClient expired = new GoogleCalendarClient(SessionStore(), new FixtureHandler(delegate { return Task.FromResult(Response(HttpStatusCode.BadRequest, "{\"error\":\"invalid_grant\"}")); })))
             {
                 bool rejected = false;
@@ -163,6 +168,48 @@ namespace WinCalendar
             check(nativeStore.Read(credentialName) == null, "Synthetic credential is removed after testing");
             await TestSetupRecoveryAsync(check, directory);
             CaptureEvents(directory, check);
+        }
+
+        private static async Task TestAdditionalCalendarsAsync(Action<bool, string> check, TimeZoneInfo zone, string directory)
+        {
+            string calendarPage = "{\"nextPageToken\":\"list2\",\"items\":[{\"id\":\"primary\",\"summary\":\"Synthetic primary\",\"accessRole\":\"owner\"},"
+                + "{\"id\":\"hidden\",\"hidden\":true,\"accessRole\":\"reader\"},{\"id\":\"busy\",\"accessRole\":\"freeBusyReader\"}]}";
+            string additional = "{\"items\":[{\"id\":\"team+one@example.test\",\"summary\":\"Synthetic shared\",\"accessRole\":\"reader\",\"selected\":false},"
+                + "{\"id\":\"team-two\",\"summaryOverride\":\"Synthetic team\",\"summary\":\"Original\",\"accessRole\":\"writer\"}]}";
+            int eventCalls = 0, listCalls = 0;
+            using (GoogleCalendarClient client = new GoogleCalendarClient(SessionStore(), new FixtureHandler(delegate(HttpRequestMessage request)
+            {
+                string path = Uri.UnescapeDataString(request.RequestUri.AbsolutePath);
+                if (path == "/token") return Task.FromResult(Response(HttpStatusCode.OK, "{\"access_token\":\"fixture-access\",\"scope\":\"" + GoogleCalendarClient.AuthorizationScopes + "\",\"expires_in\":3600}"));
+                if (path.EndsWith("/calendarList", StringComparison.Ordinal))
+                { listCalls++; return Task.FromResult(Response(HttpStatusCode.OK, request.RequestUri.Query.Contains("pageToken=list2") ? additional : calendarPage)); }
+                eventCalls++;
+                if (path.Contains("/primary/")) return Task.FromResult(Response(HttpStatusCode.OK, "{\"items\":[]}"));
+                check(!path.Contains("/hidden/") && !path.Contains("/busy/"), "Hidden and free-busy-only calendars are not queried for event details");
+                return Task.FromResult(Response(HttpStatusCode.OK, "{\"items\":[{\"id\":\"same-id\",\"summary\":\"Synthetic meeting\",\"htmlLink\":\"https://calendar.google.com/calendar/event?eid=fixture\",\"start\":{\"dateTime\":\"2026-11-12T10:00:00+03:00\"},\"end\":{\"dateTime\":\"2026-11-12T11:00:00+03:00\"}}]}"));
+            })))
+            {
+                List<CalendarEvent> events = await client.LoadAsync(new DateTime(2026, 11, 1), new DateTime(2026, 12, 1), zone, CancellationToken.None);
+                check(listCalls == 2 && eventCalls == 3 && events.Count == 2 && events.All(e => e.OccursOn(new DateTime(2026, 11, 12), zone)),
+                    "Empty primary calendar does not hide today's meetings in paginated additional calendars");
+                check(events.Select(e => e.CalendarId).Distinct().Count() == 2 && events.Any(e => e.CalendarName == "Synthetic team"),
+                    "Equal event IDs in different calendars remain distinct and retain their source names");
+            }
+            int oldGrantCalls = 0;
+            using (GoogleCalendarClient legacy = new GoogleCalendarClient(SessionStore(), new FixtureHandler(delegate(HttpRequestMessage request)
+            {
+                oldGrantCalls++;
+                return Task.FromResult(Response(HttpStatusCode.OK, "{\"access_token\":\"fixture-access\",\"scope\":\"" + GoogleCalendarClient.Scope + "\",\"expires_in\":3600}"));
+            })))
+            using (CalendarSync sync = new CalendarSync(legacy, new CalendarCache(Path.Combine(directory, "unused-permission-cache"))))
+            {
+                await sync.ShowAsync(new DateTime(2026, 11, 1), new DateTime(2026, 12, 1), zone, true);
+                check(sync.Current.Connection == CalendarConnection.NeedsLogin && sync.Current.LoadError && sync.Current.Message.Contains("список календарей"),
+                    "Legacy event-only session requests calendar-list consent instead of presenting an empty day");
+                await sync.ShowAsync(new DateTime(2026, 11, 1), new DateTime(2026, 12, 1), zone, false);
+                check(oldGrantCalls == 1 && sync.Current.Connection == CalendarConnection.NeedsLogin,
+                    "Reopening preserves the permission explanation without retrying an obsolete grant");
+            }
         }
 
         private static async Task TestSetupRecoveryAsync(Action<bool, string> check, string directory)
@@ -249,7 +296,7 @@ namespace WinCalendar
         {
             DateTime today = new DateTime(2026, 11, 12);
             List<CalendarEvent> events = new List<CalendarEvent>();
-            events.Add(new CalendarEvent { Id = "fixture1", Title = "Планирование недели — синтетический пример", Url = "https://calendar.google.com/calendar/event?eid=fixture1",
+            events.Add(new CalendarEvent { Id = "fixture1", CalendarName = "Команда", Title = "Планирование недели — синтетический пример", Url = "https://calendar.google.com/calendar/event?eid=fixture1",
                 Start = CalendarEvent.Boundary(today.AddHours(10), TimeZoneInfo.Local).ToString("o"), End = CalendarEvent.Boundary(today.AddHours(11), TimeZoneInfo.Local).ToString("o") });
             events.Add(new CalendarEvent { Id = "fixture2", Title = "Обсуждение макета и следующих шагов проекта — длинное синтетическое название встречи", Url = "https://calendar.google.com/calendar/event?eid=fixture2",
                 Start = CalendarEvent.Boundary(today.AddHours(15), TimeZoneInfo.Local).ToString("o"), End = CalendarEvent.Boundary(today.AddHours(16), TimeZoneInfo.Local).ToString("o") });
@@ -297,6 +344,21 @@ namespace WinCalendar
                 popup.Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Busy, Message = "Завершите вход в открывшемся браузере." });
                 check(popup.Panel.ConnectButton.Text == "Отмена входа" && !popup.Panel.DisconnectButton.Enabled, "Pending browser authorization can be cancelled");
                 Capture(popup.Panel, directory, "google-events-authorizing.png");
+                popup.Panel.SetData(new CalendarViewData { Connection = CalendarConnection.NeedsLogin, HasSnapshot = true, LoadError = true,
+                    Message = "Нужно разрешение на список календарей. Войдите в Google." });
+                check(!popup.Panel.Controls.OfType<Label>().Any(label => label.Text == "На этот день встреч нет."),
+                    "Missing calendar-list permission does not claim that the selected day has no meetings");
+                Capture(popup.Panel, directory, "google-events-permission.png");
+                popup.Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Connected, HasSnapshot = true, LoadError = true,
+                    Message = "Нет связи с Google. Проверьте интернет." });
+                check(!popup.Panel.Controls.OfType<Label>().Any(label => label.Text == "На этот день встреч нет."),
+                    "An empty cached snapshot plus a refresh failure is not presented as a verified empty day");
+                Capture(popup.Panel, directory, "google-events-empty-error.png");
+                popup.Panel.SetData(new CalendarViewData { Connection = CalendarConnection.Connected, LoadError = true,
+                    Message = "Нет связи с Google. Проверьте интернет." });
+                check(!popup.Panel.Controls.OfType<Label>().Any(label => label.Text.Contains("сохранённые данные")),
+                    "A first-load failure without a snapshot does not claim cached data are shown");
+                Capture(popup.Panel, directory, "google-events-initial-error.png");
                 using (GoogleSetupDialog setup = new GoogleSetupDialog())
                 {
                     setup.Show(); Application.DoEvents();

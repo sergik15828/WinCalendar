@@ -15,6 +15,8 @@ namespace WinCalendar
         public bool AllDay { get; set; }
         public string Start { get; set; }
         public string End { get; set; }
+        public string CalendarId { get; set; }
+        public string CalendarName { get; set; }
 
         internal bool OccursOn(DateTime date, TimeZoneInfo zone)
         {
